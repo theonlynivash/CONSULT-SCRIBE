@@ -1,0 +1,67 @@
+import { useState, type ReactNode } from 'react';
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import Dashboard from './pages/Dashboard';
+import ScribePage from './pages/ScribePage';
+import PatientsPage from './pages/PatientsPage';
+import SettingsPage from './pages/SettingsPage';
+import ConsultationPage from './pages/ConsultationPage';
+import PatientPage from './pages/PatientPage';
+import NotesPage from './pages/NotesPage';
+import LoginPage from './pages/LoginPage';
+import RegisterPage from './pages/RegisterPage';
+import ForgotPasswordPage from './pages/ForgotPasswordPage';
+import SplashScreen from './components/SplashScreen';
+import NavBar from './components/NavBar';
+import { useAuth } from './auth';
+
+function ProtectedRoute({ children }: { children: ReactNode }) {
+  const { user, loading } = useAuth();
+  const location = useLocation();
+
+  if (loading) return null;
+  if (!user) return <Navigate to="/login" replace state={{ from: location.pathname }} />;
+  return <>{children}</>;
+}
+
+function AppShell() {
+  return (
+    <div className="app-shell">
+      <NavBar />
+      <main className="app-main">
+        <Routes>
+          <Route index element={<Dashboard />} />
+          <Route path="scribe" element={<ScribePage />} />
+          <Route path="patients" element={<PatientsPage />} />
+          <Route path="settings" element={<SettingsPage />} />
+          <Route path="patient/:patientId" element={<PatientPage />} />
+          <Route path="consultation/:consultationId" element={<ConsultationPage />} />
+          <Route path="notes" element={<NotesPage />} />
+        </Routes>
+      </main>
+      <footer className="app-footer">© 2026 Srinivash Karthikeyan. All Rights Reserved.</footer>
+    </div>
+  );
+}
+
+export default function App() {
+  const [showSplash, setShowSplash] = useState(true);
+
+  return (
+    <>
+      {showSplash && <SplashScreen onDone={() => setShowSplash(false)} />}
+      <Routes>
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/register" element={<RegisterPage />} />
+        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+        <Route
+          path="/*"
+          element={
+            <ProtectedRoute>
+              <AppShell />
+            </ProtectedRoute>
+          }
+        />
+      </Routes>
+    </>
+  );
+}
