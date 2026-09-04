@@ -1,9 +1,8 @@
-import express, { Router } from 'express';
+import { Router } from 'express';
 import { randomUUID } from 'node:crypto';
 import { db } from '../db.js';
 import { analyzeConsultation, refineDraft } from '../lib/analyze.js';
 import { sendReportEmail } from '../lib/mailer.js';
-import { transcribeAudio } from '../lib/transcribe.js';
 
 export const consultationsRouter = Router();
 
@@ -136,84 +135,6 @@ consultationsRouter.get('/:id', async (req, res) => {
   res.json(c);
 });
 
-// Audio transcription
-consultationsRouter.post(
-  '/:id/audio',
-  express.raw({
-    type: () => true,
-    limit: '25mb',
-  }),
-  async (req, res) => {
-    await db.read();
-
-    const c = db.data.consultations.find(
-      (row) => row.id === req.params.id
-    );
-
-    if (!c) {
-      return res.status(404).json({
-        error: 'not found',
-      });
-    }
-
-    if (
-      !Buffer.isBuffer(req.body) ||
-      req.body.length === 0
-    ) {
-      return res.status(400).json({
-        error: 'audio body is required',
-      });
-    }
-
-    const speaker =
-      req.query.speaker === 'patient'
-        ? 'patient'
-        : req.query.speaker === 'doctor'
-        ? 'doctor'
-        : 'conversation';
-
-    const lang =
-      typeof req.query.lang === 'string' &&
-      req.query.lang
-        ? req.query.lang
-        : 'en-IN';
-
-    const localOnly =
-      req.query.mode === 'local';
-
-    const mimeType =
-      req.headers['content-type'] ||
-      'audio/webm';
-
-    try {
-      const text = await transcribeAudio(
-        req.body,
-        mimeType,
-        lang,
-        { localOnly }
-      );
-
-      if (text) {
-        c.transcript.push({
-          speaker,
-          text,
-          at: new Date().toISOString(),
-        });
-
-        await db.write();
-      }
-
-      res.status(201).json(c);
-    } catch (err) {
-      res.status(502).json({
-        error:
-          err.message ||
-          'transcription failed',
-      });
-    }
-  }
-);
-
 // Add transcript manually
 consultationsRouter.post(
   '/:id/transcript',
@@ -324,11 +245,16 @@ consultationsRouter.post(
 
     c.status = 'review';
 
-    const analysis =
-      await analyzeConsultation(
-        c,
-        patient
-      );
+    let analysis;
+    try {
+      analysis = await analyzeConsultation(c, patient);
+    } catch (err) {
+      console.error('Consultation analysis failed:', err.message);
+      return res.status(502).json({
+        error: err.message || 'AI analysis failed. Check GROQ_API_KEY.',
+        code: 'AI_PROVIDER_ERROR',
+      });
+    }
 
     // IMPORTANT:
     // This is ONLY an AI suggestion.
@@ -484,11 +410,16 @@ consultationsRouter.post(
         (p) => p.id === c.patientId
       );
 
-    const analysis =
-      await analyzeConsultation(
-        c,
-        patient
-      );
+    let analysis;
+    try {
+      analysis = await analyzeConsultation(c, patient);
+    } catch (err) {
+      console.error('Consultation regeneration failed:', err.message);
+      return res.status(502).json({
+        error: err.message || 'AI analysis failed. Check GROQ_API_KEY.',
+        code: 'AI_PROVIDER_ERROR',
+      });
+    }
 
     c.aiDraft = {
       ...analysis,
@@ -524,11 +455,16 @@ consultationsRouter.post(
       });
     }
 
-    const revised =
-      await refineDraft(
-        draft,
-        instruction
-      );
+    let revised;
+    try {
+      revised = await refineDraft(draft, instruction);
+    } catch (err) {
+      console.error('Draft refinement failed:', err.message);
+      return res.status(502).json({
+        error: err.message || 'AI refinement failed. Check GROQ_API_KEY.',
+        code: 'AI_PROVIDER_ERROR',
+      });
+    }
 
     // Stateless:
     // Nothing is saved until doctor approves.

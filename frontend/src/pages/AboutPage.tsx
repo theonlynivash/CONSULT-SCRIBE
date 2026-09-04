@@ -72,14 +72,14 @@ const flow = [
   },
   {
     n: '02',
-    title: 'Fallback locally',
-    text: 'If speech recognition raises a network error, it stops and hands the audio to local whisper.cpp.',
+    title: 'Capture in Chrome',
+    text: 'Chrome speech recognition captures the conversation continuously while the consultation is active.',
     icon: icons.wifi,
   },
   {
     n: '03',
-    title: 'Analyze locally',
-    text: 'Ollama runs Qwen3 1.7B locally to turn the transcript and vitals into a structured draft.',
+    title: 'Analyze with Groq',
+    text: 'Groq turns the transcript and vitals into a structured draft for the doctor to review.',
     icon: icons.brain,
   },
   {
@@ -92,8 +92,8 @@ const flow = [
 
 const features = [
   ['Continuous conversation', 'No Doctor / Patient switching or manual speaker tagging.', icons.mic],
-  ['Network-error fallback', 'Online speech is the first path; whisper.cpp takes over only after a network speech error.', icons.wifi],
-  ['Local clinical AI', 'Ollama + Qwen3 1.7B keeps the core clinical analysis on the machine.', icons.brain],
+  ['Chrome speech', 'Browser speech recognition captures the conversation without a server-side audio pipeline.', icons.wifi],
+  ['Groq clinical AI', 'Groq prepares the structured draft while the doctor remains in control.', icons.brain],
   ['Doctor in control', 'AI proposes. The doctor decides what stays in the final clinical record.', icons.shield],
   ['Patient history', 'Approved visits remain available as context for future consultations.', icons.history],
   ['PDF + email', 'Create an A4 report and send the approved patient-facing copy to the saved email.', icons.mail],
@@ -186,14 +186,13 @@ export default function AboutPage() {
         </h1>
 
         <p className="about-hero-copy">
-          A local-first AI clinical co-pilot that turns a natural consultation
+          An AI clinical co-pilot that turns a natural consultation
           into a reviewable medical note.
         </p>
 
         <div className="about-pills">
-          <span>LOCAL-FIRST</span>
-          <span>WHISPER.CPP</span>
-          <span>QWEN3</span>
+          <span>CHROME SPEECH</span>
+          <span>GROQ AI</span>
           <span>DOCTOR-CONTROLLED</span>
         </div>
 
@@ -298,16 +297,16 @@ export default function AboutPage() {
 
             <div className="about-stack-node emphasis about-interactive-card" onMouseMove={handleCardMouseMove} onMouseLeave={handleCardMouseLeave}>
               <span className="about-stack-icon"><Icon>{icons.wifi}</Icon></span>
-              <strong>whisper.cpp</strong>
-              <span>Network-error fallback</span>
+              <strong>Chrome Speech</strong>
+              <span>Browser transcription</span>
             </div>
 
             <div className="about-stack-connector">→</div>
 
             <div className="about-stack-node emphasis about-interactive-card" onMouseMove={handleCardMouseMove} onMouseLeave={handleCardMouseLeave}>
               <span className="about-stack-icon"><Icon>{icons.brain}</Icon></span>
-              <strong>Ollama + Qwen3</strong>
-              <span>Local clinical analysis</span>
+              <strong>Groq API</strong>
+              <span>Clinical analysis</span>
             </div>
 
             <div className="about-stack-connector">→</div>

@@ -9,6 +9,8 @@ node_modules/
 .next/
 dist/
 build/
+Consult-Scribe-Render.zip
+CONSULT_SCRIBE_V1.OO.O2/
 
 # Env / secrets
 .env

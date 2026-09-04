@@ -5,7 +5,7 @@ import { patientsRouter } from './src/routes/patients.js';
 import { consultationsRouter } from './src/routes/consultations.js';
 import { authRouter } from './src/routes/auth.js';
 import { requireAuth } from './src/lib/auth.js';
-import { sttConfigured, localWhisperConfigured } from './src/lib/providers.js';
+import { grokConfigured } from './src/lib/providers.js';
 
 const app = express();
 app.use(cors());
@@ -19,9 +19,7 @@ app.get('/api/health', (req, res) => res.json({ ok: true }));
 
 app.get('/api/status', requireAuth, (req, res) => {
   res.json({
-    llmConfigured: true,
-    sttConfigured: sttConfigured(),
-    localWhisperConfigured: localWhisperConfigured(),
+    llmConfigured: grokConfigured(),
     emailConfigured: Boolean(process.env.SMTP_HOST && process.env.EMAIL_USER && process.env.EMAIL_PASSWORD),
   });
 });

@@ -8,7 +8,7 @@ import type {
   User,
 } from './types';
 
-const BASE = '/api';
+const BASE = `${(import.meta.env.VITE_API_URL || '').replace(/\/$/, '')}/api`;
 const TOKEN_KEY = 'consult-scribe-token';
 
 export function getToken() {
@@ -251,91 +251,6 @@ export const api = {
     ),
 
   // ==========================================
-  // AUDIO / TRANSCRIPTION
-  // ==========================================
-
-  uploadConsultationAudio: async (
-    id: string,
-    blob: Blob,
-    opts?: {
-      speaker?: Speaker;
-      lang?: string;
-      mode?: 'local' | 'online';
-    }
-  ) => {
-    const token = getToken();
-
-    const params =
-      new URLSearchParams();
-
-    params.set(
-      'speaker',
-      opts?.speaker ||
-        'conversation'
-    );
-
-    if (opts?.lang) {
-      params.set(
-        'lang',
-        opts.lang
-      );
-    }
-
-    if (opts?.mode) {
-      params.set(
-        'mode',
-        opts.mode
-      );
-    }
-
-    const res = await fetch(
-      `${BASE}/consultations/${id}/audio?${params.toString()}`,
-      {
-        method: 'POST',
-
-        headers: {
-          ...(token
-            ? {
-                Authorization:
-                  `Bearer ${token}`,
-              }
-            : {}),
-
-          'Content-Type':
-            blob.type ||
-            'audio/webm',
-        },
-
-        body: blob,
-      }
-    );
-
-    if (res.status === 401) {
-      clearToken();
-
-      window.dispatchEvent(
-        new Event(
-          'auth:unauthorized'
-        )
-      );
-    }
-
-    if (!res.ok) {
-      const body = await res
-        .json()
-        .catch(() => ({}));
-
-      throw new ApiError(
-        body.error ||
-          `Request failed: ${res.status}`,
-        body.code
-      );
-    }
-
-    return res.json() as Promise<Consultation>;
-  },
-
-  // ==========================================
   // VITALS
   // ==========================================
 
@@ -494,8 +409,6 @@ export const api = {
   getStatus: () =>
     request<{
       llmConfigured: boolean;
-      sttConfigured: boolean;
-      localWhisperConfigured: boolean;
       emailConfigured: boolean;
     }>('/status'),
 };

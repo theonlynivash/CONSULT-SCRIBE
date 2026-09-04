@@ -40,22 +40,10 @@ export default function ConsultationPage() {
   const [voiceLang, setVoiceLang] = useState<'ta-IN' | 'en-IN'>('ta-IN');
   const [listening, setListening] = useState(false);
   const [voiceError, setVoiceError] = useState('');
-  const [localFallback, setLocalFallback] = useState(false);
-  const [localTranscribing, setLocalTranscribing] = useState(false);
   const demoRunning = useRef(false);
   const recognitionRef = useRef<any>(null);
   const listeningRef = useRef(false);
   const consultationIdRef = useRef(consultationId);
-  const audioContextRef = useRef<AudioContext | null>(null);
-  const audioSourceRef = useRef<MediaStreamAudioSourceNode | null>(null);
-  const audioProcessorRef = useRef<ScriptProcessorNode | null>(null);
-  const audioStreamRef = useRef<MediaStream | null>(null);
-  const pcmChunksRef = useRef<Float32Array[]>([]);
-  const pcmSampleRateRef = useRef(16000);
-  const localOffsetRef = useRef(0);
-  const localTimerRef = useRef<number | null>(null);
-  const localBusyRef = useRef(false);
-  const localFallbackRef = useRef(false);
 
   useEffect(() => {
     consultationIdRef.current = consultationId;
@@ -82,7 +70,6 @@ export default function ConsultationPage() {
     refresh();
     return () => {
       listeningRef.current = false;
-      localFallbackRef.current = false;
       const rec = recognitionRef.current;
       if (rec) {
         rec.onend = null;
@@ -94,156 +81,18 @@ export default function ConsultationPage() {
           /* already stopped */
         }
       }
-      stopPcmCapture();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [consultationId]);
 
-  function encodeWav(samples: Float32Array, sampleRate: number) {
-    const buffer = new ArrayBuffer(44 + samples.length * 2);
-    const view = new DataView(buffer);
-    const writeString = (offset: number, value: string) => {
-      for (let i = 0; i < value.length; i += 1) view.setUint8(offset + i, value.charCodeAt(i));
-    };
-    writeString(0, 'RIFF');
-    view.setUint32(4, 36 + samples.length * 2, true);
-    writeString(8, 'WAVE');
-    writeString(12, 'fmt ');
-    view.setUint32(16, 16, true);
-    view.setUint16(20, 1, true);
-    view.setUint16(22, 1, true);
-    view.setUint32(24, sampleRate, true);
-    view.setUint32(28, sampleRate * 2, true);
-    view.setUint16(32, 2, true);
-    view.setUint16(34, 16, true);
-    writeString(36, 'data');
-    view.setUint32(40, samples.length * 2, true);
-    for (let i = 0; i < samples.length; i += 1) {
-      const sample = Math.max(-1, Math.min(1, samples[i]));
-      view.setInt16(44 + i * 2, sample < 0 ? sample * 0x8000 : sample * 0x7fff, true);
-    }
-    return new Blob([buffer], { type: 'audio/wav' });
-  }
-
-  function downsampleBuffer(input: Float32Array, inputRate: number, outputRate: number) {
-    if (inputRate === outputRate) return input;
-    const ratio = inputRate / outputRate;
-    const length = Math.round(input.length / ratio);
-    const output = new Float32Array(length);
-    let offset = 0;
-    for (let i = 0; i < length; i += 1) {
-      const next = Math.min(input.length, Math.round((i + 1) * ratio));
-      let sum = 0;
-      let count = 0;
-      for (let j = offset; j < next; j += 1) { sum += input[j]; count += 1; }
-      output[i] = count ? sum / count : 0;
-      offset = next;
-    }
-    return output;
-  }
-
-  async function startPcmCapture() {
-    if (audioContextRef.current) return;
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
-    const context = new AudioContext();
-    const source = context.createMediaStreamSource(stream);
-    const processor = context.createScriptProcessor(4096, 1, 1);
-    pcmSampleRateRef.current = context.sampleRate;
-    pcmChunksRef.current = [];
-    localOffsetRef.current = 0;
-    processor.onaudioprocess = (event) => {
-      const input = event.inputBuffer.getChannelData(0);
-      pcmChunksRef.current.push(new Float32Array(input));
-    };
-    source.connect(processor);
-    processor.connect(context.destination);
-    audioStreamRef.current = stream;
-    audioSourceRef.current = source;
-    audioProcessorRef.current = processor;
-    audioContextRef.current = context;
-  }
-
-  function stopPcmCapture() {
-    if (localTimerRef.current !== null) window.clearInterval(localTimerRef.current);
-    localTimerRef.current = null;
-    audioProcessorRef.current?.disconnect();
-    audioSourceRef.current?.disconnect();
-    audioStreamRef.current?.getTracks().forEach((track) => track.stop());
-    audioContextRef.current?.close().catch(() => {});
-    audioProcessorRef.current = null;
-    audioSourceRef.current = null;
-    audioStreamRef.current = null;
-    audioContextRef.current = null;
-    pcmChunksRef.current = [];
-    localOffsetRef.current = 0;
-  }
-
-  async function transcribeLocalChunk(force = false) {
-    const id = consultationIdRef.current;
-    if (!id || localBusyRef.current) return;
-    const all = pcmChunksRef.current;
-    if (!all.length) return;
-    const totalLength = all.reduce((sum, chunk) => sum + chunk.length, 0);
-    const currentRate = pcmSampleRateRef.current;
-    const minimumSamples = currentRate * 1.5;
-    if (!force && totalLength - localOffsetRef.current < minimumSamples) return;
-    const source = new Float32Array(totalLength - localOffsetRef.current);
-    let pos = 0;
-    let skipped = 0;
-    for (const chunk of all) {
-      if (skipped + chunk.length <= localOffsetRef.current) { skipped += chunk.length; continue; }
-      const start = Math.max(0, localOffsetRef.current - skipped);
-      source.set(chunk.subarray(start), pos);
-      pos += chunk.length - start;
-      skipped += chunk.length;
-    }
-    if (pos < minimumSamples && !force) return;
-    const wavSamples = downsampleBuffer(source.subarray(0, pos), currentRate, 16000);
-    if (wavSamples.length < 16000 * 0.8) return;
-    localOffsetRef.current = totalLength;
-    localBusyRef.current = true;
-    setLocalTranscribing(true);
-    try {
-      const result = await api.uploadConsultationAudio(id, encodeWav(wavSamples, 16000), { speaker: 'conversation', lang: voiceLang, mode: 'local' });
-      setConsultation(result);
-    } catch (err) {
-      setVoiceError((err as Error).message || 'Local whisper.cpp transcription failed.');
-    } finally {
-      localBusyRef.current = false;
-      setLocalTranscribing(false);
-    }
-  }
-
-  function startLocalFallback() {
-    localFallbackRef.current = true;
-    setLocalFallback(true);
-    setVoiceError('Internet speech recognition is unavailable. Continuing with local whisper.cpp — no speech audio is sent to Google/OpenAI/Groq.');
-    const id = consultationIdRef.current;
-    if (!id) return;
-    if (!audioContextRef.current) {
-      startPcmCapture().catch((err) => setVoiceError((err as Error).message || 'Could not access the microphone.'));
-    }
-    if (localTimerRef.current === null) {
-      localTimerRef.current = window.setInterval(() => { void transcribeLocalChunk(false); }, 5000);
-    }
-  }
-
   async function startListening() {
     setVoiceError('');
-    try {
-      await startPcmCapture();
-    } catch (err) {
-      setVoiceError((err as Error).message || 'Could not access the microphone.');
-      return;
-    }
-
     const SpeechRecognitionCtor = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SpeechRecognitionCtor) {
       stopPcmCapture();
       setVoiceError('Online speech recognition is not supported in this browser. Use Chrome or Edge to enable the network-first conversation mode.');
       return;
     }
-    setLocalFallback(false);
     listeningRef.current = true;
     setListening(true);
     beginRecognition(SpeechRecognitionCtor, voiceLang);
@@ -297,16 +146,9 @@ export default function ConsultationPage() {
         return;
       }
       if (err === 'network') {
-        // IMPORTANT: local whisper.cpp is a fallback only for an online speech
-        // recognition network failure. Stop the browser recognizer immediately
-        // so it cannot reconnect after the fallback has taken over.
-        const failedRecognition = recognitionRef.current;
-        if (failedRecognition) {
-          failedRecognition.onend = null;
-          failedRecognition.onerror = null;
-          try { failedRecognition.stop(); } catch { /* already stopped */ }
-        }
-        startLocalFallback();
+        listeningRef.current = false;
+        setListening(false);
+        setVoiceError('Chrome speech recognition needs an internet connection. Check the connection and try again.');
         return;
       }
       if (err === 'language-not-supported' && lang.startsWith('ta')) {
@@ -320,7 +162,6 @@ export default function ConsultationPage() {
     };
 
     recognition.onend = () => {
-      if (localFallbackRef.current) return;
       if (!listeningRef.current) {
         setListening(false);
         return;
@@ -349,9 +190,6 @@ export default function ConsultationPage() {
   function stopListening() {
     listeningRef.current = false;
     setListening(false);
-    localFallbackRef.current = false;
-    if (localFallback) void transcribeLocalChunk(true);
-    stopPcmCapture();
     const rec = recognitionRef.current;
     if (!rec) return;
     rec.onend = null;
@@ -703,7 +541,7 @@ export default function ConsultationPage() {
             <div className="consult-header">
               <div>
                 <h2>Live consultation</h2>
-                <p className={`consult-sub ${listening ? 'live' : ''}`}>{localFallback ? (localTranscribing ? 'Local whisper.cpp transcribing…' : 'Local offline transcription') : listening ? 'Listening…' : 'Not recording'}</p>
+                <p className={`consult-sub ${listening ? 'live' : ''}`}>{listening ? 'Listening…' : 'Not recording'}</p>
               </div>
               <button type="button" className="ghost" onClick={runDemoMode}>
                 Demo mode
@@ -806,7 +644,7 @@ export default function ConsultationPage() {
               <h2>{consultation.status === 'approved' ? 'Approved report' : 'AI consultation review'}</h2>
               <p className="consult-sub">{consultation.doctorName} · {new Date(consultation.startedAt).toLocaleDateString()}</p>
             </div>
-            <span className="badge">{draft.generatedBy === 'qwen3-local' ? 'Qwen3 1.7B · Local' : 'Offline fallback'}</span>
+            <span className="badge">{draft.generatedBy === 'groq' ? 'Groq AI' : 'AI draft'}</span>
           </div>
 
           <div className="review-warning">
