@@ -1,27 +1,28 @@
 # Consult Scribe
 
-Built for PEC Techathon 4.0 (Healthcare & Social — "AI Medical Scribe"). An
-AI-assisted consultation assistant: captures the doctor-patient conversation,
-reads live vitals, drafts a structured note + ranked differential for the
-doctor to review, and exports/emails the approved report. The doctor
-confirms everything — no autonomous diagnosis.
+AI-assisted medical documentation for faster, structured clinical consultations.
 
-See [PROJECT_PLAN.md](./PROJECT_PLAN.md) for the pitch, architecture, and
-what's left before the Sept 3 deadline.
+Built for **PEC Techathon 4.0 — Healthcare & Social: AI Medical Scribe**.
 
-## Run it
+Consult Scribe helps doctors capture consultations, record patient vitals, generate structured clinical notes, review AI suggestions, and export the approved report.
 
-```bash
-npm run install:all   # first time only
-npm run dev
-```
+> **Doctor-in-the-loop:** AI assists with documentation and suggestions. The doctor reviews and approves the final report.
 
-Frontend: http://localhost:5173 — Backend: http://localhost:8787
+## Features
 
-AI analysis and report refinement use the Grok API. Set `GROK_API_KEY` in the backend
-environment. Speech recognition uses Chrome's built-in online `SpeechRecognition` API.
+- Live doctor-patient conversation capture
+- English and Tamil speech recognition
+- Chrome browser speech recognition
+- Live patient vitals
+- AI-assisted clinical note generation
+- Ranked differential suggestions
+- Doctor review and editing
+- Patient history and consultation records
+- PDF report generation
+- Approved report sent to patient by email
+- ESP32-based vitals integration
 
-## Structure
+## Technology
 
 - `frontend/` — React + Vite app: dashboard, live consultation capture, AI
   draft review, PDF export, email
