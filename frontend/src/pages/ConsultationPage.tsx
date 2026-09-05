@@ -89,7 +89,6 @@ export default function ConsultationPage() {
     setVoiceError('');
     const SpeechRecognitionCtor = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SpeechRecognitionCtor) {
-      stopPcmCapture();
       setVoiceError('Online speech recognition is not supported in this browser. Use Chrome or Edge to enable the network-first conversation mode.');
       return;
     }

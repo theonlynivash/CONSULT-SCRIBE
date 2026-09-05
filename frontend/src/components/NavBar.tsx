@@ -184,7 +184,10 @@ export default function NavBar() {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+  const activeLink = LINKS.find((link) => link.to === '/' ? location.pathname === '/' : location.pathname.startsWith(link.to));
+
   return (
+    <>
     <header className="app-topnav">
       <Link to="/" className="app-logo">
         <img src="/logo.png" alt="Consult Scribe" />
@@ -224,20 +227,23 @@ export default function NavBar() {
             <span>New patient</span>
           </Link>
 
-          <button type="button" className="app-icon-btn" title="Notifications (coming soon)" disabled>
-            <BellIcon />
-          </button>
-          <button
-            type="button"
-            className="app-icon-btn"
-            onClick={toggleTheme}
-            title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
-          >
-            {theme === 'dark' ? <SunIcon /> : <MoonIcon />}
-          </button>
-          <button type="button" className="app-icon-btn" onClick={logout} title="Sign out">
-            <SignOutIcon />
-          </button>
+          <div className="app-nav-utility-actions" aria-label="Application controls">
+            <button type="button" className="app-icon-btn" title="Notifications (coming soon)" aria-label="Notifications (coming soon)" disabled>
+              <BellIcon />
+            </button>
+            <button
+              type="button"
+              className="app-icon-btn"
+              onClick={toggleTheme}
+              title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+              aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+            >
+              {theme === 'dark' ? <SunIcon /> : <MoonIcon />}
+            </button>
+            <button type="button" className="app-icon-btn" onClick={logout} title="Sign out" aria-label="Sign out">
+              <SignOutIcon />
+            </button>
+          </div>
 
           <Link to="/settings" className="app-profile-chip">
             <span className="app-profile-name">{user?.name}</span>
@@ -253,5 +259,17 @@ export default function NavBar() {
         </div>
       </div>
     </header>
+    <nav className="app-mobile-section-nav" aria-label="Primary navigation">
+      <span className="app-mobile-current">{activeLink?.label ?? 'Consult Scribe'}</span>
+      <div className="app-mobile-section-links">
+        {LINKS.map(({ to, label, end, Icon }) => (
+          <NavLink key={to} to={to} end={end}>
+            <Icon />
+            <span>{label}</span>
+          </NavLink>
+        ))}
+      </div>
+    </nav>
+    </>
   );
 }

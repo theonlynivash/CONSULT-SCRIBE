@@ -218,7 +218,7 @@ body {
 
 .home-hero {
   position: relative;
-  overflow: visible;
+  overflow: hidden;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -313,7 +313,7 @@ body {
   max-width: 260px;
   height: auto;
   flex-shrink: 0;
-  margin: -34px 0;
+  margin: -10px 0 -10px;
   filter: drop-shadow(0 18px 22px rgba(22, 20, 10, 0.22)) drop-shadow(0 4px 8px rgba(22, 20, 10, 0.12));
 }
 
@@ -682,6 +682,7 @@ body {
 
 .app-nav-links a.active {
   opacity: 1;
+  font-weight: 750;
 }
 
 .app-nav-links a svg {
@@ -4337,6 +4338,133 @@ button.conversation-mic.listening { background: var(--danger); border-color: var
 .patient-delete-actions button:disabled {
   opacity: 0.55;
   cursor: default;
+}
+
+/* Responsive navigation and shared motion polish.  The section rail gives
+   phones first-class navigation without making the full utility menu compete
+   for the narrow header width. */
+.app-page-transition {
+  animation: page-enter 220ms cubic-bezier(.22, 1, .36, 1) both;
+}
+
+@keyframes page-enter {
+  from { opacity: 0; transform: translateY(7px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.app-mobile-section-nav { display: none; }
+.app-nav-utility-actions { display: flex; align-items: center; gap: 8px; }
+
+/* The menu is portalled to body, so a table's scroll container cannot clip it. */
+.scribe-kebab-menu {
+  position: fixed;
+  z-index: 101;
+  animation: menu-enter 160ms cubic-bezier(.22, 1, .36, 1) both;
+}
+.scribe-kebab-backdrop { z-index: 100; }
+@keyframes menu-enter {
+  from { opacity: 0; transform: translateY(-4px) scale(.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@media (max-width: 760px) {
+  .app-shell { padding: 0 12px 16px; }
+  .app-shell > .app-main { width: 100%; }
+  .app-topnav { margin: 12px 0 8px; padding: 7px 9px 7px 16px; }
+  .app-logo img { height: 27px; }
+
+  .app-mobile-section-nav {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    width: 100%;
+    margin: 0 0 22px;
+  }
+  .app-mobile-current {
+    padding: 0 4px;
+    color: var(--ink-muted);
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+  }
+  .app-mobile-section-links {
+    display: flex;
+    gap: 7px;
+    overflow-x: auto;
+    padding: 2px 1px 7px;
+    scrollbar-width: none;
+    overscroll-behavior-x: contain;
+  }
+  .app-mobile-section-links::-webkit-scrollbar { display: none; }
+  .app-mobile-section-links a {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 40px;
+    padding: 8px 12px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    background: var(--surface);
+    color: var(--ink-muted);
+    font-size: 12px;
+    font-weight: 750;
+    line-height: 1;
+    text-decoration: none;
+    white-space: nowrap;
+    transition: background 160ms ease, color 160ms ease, border-color 160ms ease, transform 120ms ease;
+  }
+  .app-mobile-section-links a:active { transform: scale(.97); }
+  .app-mobile-section-links a.active { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+  .app-mobile-section-links svg { width: 15px; height: 15px; }
+
+  .app-nav-collapsible.is-open { max-height: calc(100vh - 96px); overflow-y: auto; }
+  .app-nav-collapsible.is-open .app-nav-actions { gap: 12px; }
+  .app-nav-collapsible.is-open .app-nav-utility-actions {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+    width: 100%;
+  }
+  .app-nav-collapsible.is-open .app-nav-utility-actions .app-icon-btn {
+    justify-self: center;
+    width: 46px;
+    height: 46px;
+  }
+
+  .home-hero { gap: 14px; padding: 22px 20px 14px; }
+  .home-illustration { width: min(100%, 210px); max-width: 210px; margin: 0 auto -6px; }
+  .home-greeting { font-size: clamp(20px, 6vw, 25px); }
+  .home-sub { font-size: 14px; }
+  .home-hero-actions { width: 100%; }
+  .home-cta-primary, .home-cta-secondary { min-height: 44px; justify-content: center; }
+
+  .panel { padding: 16px; border-radius: 16px; }
+  .form-row { gap: 10px; }
+  .form-row input, .form-row select, .form-row button { width: 100%; min-height: 44px; }
+  .patient-row { align-items: flex-start; gap: 12px; padding: 13px 0; }
+  .patient-row-main { min-width: 0; }
+  .patient-delete-button { flex: 0 0 auto; min-height: 40px; }
+  .scribe-list-header { align-items: flex-start; flex-direction: column; }
+  .scribe-list-header > button { width: 100%; min-height: 44px; justify-content: center; }
+  .scribe-toolbar { display: grid; grid-template-columns: 1fr 1fr; }
+  .scribe-toolbar-search { grid-column: 1 / -1; min-width: 0; }
+  .scribe-toolbar-field { min-width: 0; padding: 9px; }
+  .scribe-toolbar-field select { width: 100%; min-width: 0; }
+  .scribe-table-wrap { margin: 0 -4px; }
+  .scribe-table { min-width: 680px; }
+}
+
+@media (max-width: 390px) {
+  .app-mobile-section-links a { padding: 8px 10px; }
+  .home-hero-actions { flex-direction: column; }
+  .home-cta-primary, .home-cta-secondary { width: 100%; }
+  .scribe-toolbar { grid-template-columns: 1fr; }
+  .scribe-toolbar-search { grid-column: auto; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
 }
 
 @media (max-width: 520px) {

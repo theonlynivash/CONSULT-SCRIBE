@@ -25,10 +25,12 @@ function ProtectedRoute({ children }: { children: ReactNode }) {
 }
 
 function AppShell() {
+  const location = useLocation();
   return (
     <div className="app-shell">
       <NavBar />
       <main className="app-main">
+        <div className="app-page-transition" key={location.pathname}>
         <Routes>
           <Route index element={<Dashboard />} />
           <Route path="scribe" element={<ScribePage />} />
@@ -39,6 +41,7 @@ function AppShell() {
           <Route path="notes" element={<NotesPage />} />
           <Route path="about" element={<AboutPage />} />
         </Routes>
+        </div>
       </main>
       <footer className="app-footer">© 2026 Srinivash Karthikeyan. All Rights Reserved.</footer>
     </div>

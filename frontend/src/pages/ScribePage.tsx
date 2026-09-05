@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../api';
 import { useAuth } from '../auth';
@@ -150,6 +151,7 @@ export default function ScribePage() {
   const [loaded, setLoaded] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [menuId, setMenuId] = useState<string | null>(null);
+  const [menuPosition, setMenuPosition] = useState<{ top: number; right: number } | null>(null);
   const [error, setError] = useState('');
 
   const [search, setSearch] = useState('');
@@ -213,6 +215,16 @@ export default function ScribePage() {
     } finally {
       setBusyId(null);
     }
+  }
+
+  function toggleMenu(patientId: string, button: HTMLButtonElement) {
+    if (menuId === patientId) {
+      setMenuId(null);
+      return;
+    }
+    const rect = button.getBoundingClientRect();
+    setMenuPosition({ top: Math.min(rect.bottom + 6, window.innerHeight - 112), right: Math.max(12, window.innerWidth - rect.right) });
+    setMenuId(patientId);
   }
 
   const rows: Row[] = patients.map((patient) => {
@@ -442,20 +454,20 @@ export default function ScribePage() {
                           <button
                             type="button"
                             className="scribe-kebab-btn"
-                            onClick={() => setMenuId((id) => (id === patient.id ? null : patient.id))}
+                            onClick={(event) => toggleMenu(patient.id, event.currentTarget)}
                             aria-label="More actions"
                           >
                             <KebabIcon />
                           </button>
-                          {menuId === patient.id && (
+                          {menuId === patient.id && menuPosition && createPortal(
                             <>
                               <div className="scribe-kebab-backdrop" onClick={() => setMenuId(null)} />
-                              <div className="scribe-kebab-menu">
+                              <div className="scribe-kebab-menu" style={{ top: menuPosition.top, right: menuPosition.right }} role="menu">
                                 <button type="button" onClick={() => navigate(`/patient/${patient.id}`)}>
                                   View patient profile
                                 </button>
                               </div>
-                            </>
+                            </>, document.body
                           )}
                         </div>
                       </div>
