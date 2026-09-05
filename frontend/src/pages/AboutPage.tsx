@@ -94,7 +94,7 @@ const features = [
   ['Continuous conversation', 'No Doctor / Patient switching or manual speaker tagging.', icons.mic],
   ['Chrome speech', 'Browser speech recognition captures the conversation without a server-side audio pipeline.', icons.wifi],
   ['Groq clinical AI', 'Groq prepares the structured draft while the doctor remains in control.', icons.brain],
-  ['Doctor in control', 'AI proposes. The doctor decides what stays in the final clinical record.', icons.shield],
+  ['Doctor in control', 'The doctor decides what stays in the final clinical record.', icons.shield],
   ['Patient history', 'Approved visits remain available as context for future consultations.', icons.history],
   ['PDF + email', 'Create an A4 report and send the approved patient-facing copy to the saved email.', icons.mail],
 ];
@@ -186,13 +186,13 @@ export default function AboutPage() {
         </h1>
 
         <p className="about-hero-copy">
-          An AI clinical co-pilot that turns a natural consultation
+          A clinical documentation workspace that turns a natural consultation
           into a reviewable medical note.
         </p>
 
         <div className="about-pills">
           <span>CHROME SPEECH</span>
-          <span>GROQ AI</span>
+          <span>CLINICAL WORKFLOW</span>
           <span>DOCTOR-CONTROLLED</span>
         </div>
 
@@ -332,7 +332,7 @@ export default function AboutPage() {
             <div className="about-icon large"><Icon>{icons.shield}</Icon></div>
             <div>
               <div className="about-kicker">DOCTOR-CONTROLLED</div>
-              <h2>AI assists. The doctor approves.</h2>
+              <h2>The doctor reviews and approves.</h2>
               <p>
                 Every generated clinical suggestion is editable before approval.
                 Consult Scribe does not replace clinical judgement; it reduces

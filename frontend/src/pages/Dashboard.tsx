@@ -156,7 +156,7 @@ export default function Dashboard() {
               <ul className="home-status-list">
                 <li>
                   <span className="home-status-dot on" />
-                  {status?.llmConfigured ? 'AI scribe ready (LLM-powered)' : 'AI scribe ready (offline mode)'}
+                  Clinical scribe ready
                 </li>
                 <li>
                   <span className={`home-status-dot${micAvailable ? ' on' : ''}`} />

@@ -3195,7 +3195,7 @@ button.save-button {
   .about-flow-card::before,.about-feature::before,.about-stack-node::before,.about-contact::before,.about-control-card::before { animation:none; }
 }
 
-/* AI consultation review - responsive layout */
+/* Consultation review - responsive layout */
 .review-warning {
   margin: 18px 22px;
   padding: 12px 14px;

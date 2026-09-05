@@ -322,14 +322,14 @@ export default function ConsultationPage() {
         doc.setTextColor(...ink);
       };
       const section = (x: number, width: number, title: string, top: number) => {
-        const h = sx(7.4);
+        const h = sx(8.6);
         doc.setFillColor(...blue);
         doc.rect(x, top, width, h, 'F');
         doc.setFont('helvetica', 'bold');
         doc.setFontSize(sx(9.1));
         doc.setTextColor(255, 255, 255);
-        doc.text(title.toUpperCase(), x + sx(3.1), top + sx(5.0));
-        return top + h + sx(3.5);
+        doc.text(title.toUpperCase(), x + sx(3.1), top + sx(5.8));
+        return top + h + sx(5.4);
       };
       const bullets = (items: string[], x: number, top: number, width: number, maxItems: number, maxLines = 3) => {
         let cy = top;
@@ -340,12 +340,12 @@ export default function ConsultationPage() {
           doc.circle(x + sx(1.5), cy - sx(1.3), sx(0.75), 'F');
           setBody(9.2);
           doc.text(lines, x + sx(4.2), cy);
-          cy += Math.max(1, lines.length) * sx(3.7) + sx(1.7);
+          cy += Math.max(1, lines.length) * sx(4.5) + sx(2.8);
         }
         if (!items.length) {
           setBody(9.2);
           doc.text('Not recorded', x, cy);
-          cy += sx(3.8);
+          cy += sx(5.2);
         }
         return cy;
       };
@@ -378,7 +378,7 @@ export default function ConsultationPage() {
       y += sx(11);
 
       // Patient details — two rows, four fields, no doctor details.
-      const cardH = sx(31);
+      const cardH = sx(37);
       doc.setFillColor(...lightBlue);
       doc.setDrawColor(...border);
       doc.roundedRect(margin, y, contentWidth, cardH, sx(1.7), sx(1.7), 'FD');
@@ -395,7 +395,7 @@ export default function ConsultationPage() {
       patientField(px + pw + sx(7), y + sx(7), 'Visit', visitText, pw);
       patientField(px, y + sx(18), 'Age / Sex', `${patientAge}  •  ${patientSex}`, pw);
       patientField(px + pw + sx(7), y + sx(18), 'Email', patientEmail, pw);
-      y += cardH + sx(8);
+      y += cardH + sx(13);
 
       const leftX = margin;
       const rightX = margin + colWidth + gap;
@@ -415,7 +415,7 @@ export default function ConsultationPage() {
       setBody(9.8);
       const summary = wrap(draft.querySummary || draft.subjective || 'No summary recorded.', 9.8, colWidth - sx(6)).slice(0, 7);
       doc.text(summary, leftX + sx(3), ly);
-      ly += Math.max(1, summary.length) * sx(3.9) + sx(6);
+      ly += Math.max(1, summary.length) * sx(4.8) + sx(10);
 
       ly = section(leftX, colWidth, 'Objective / Vitals', ly);
       const objective =
@@ -430,7 +430,7 @@ export default function ConsultationPage() {
       setBody(9.4);
       const objectiveLines = wrap(objective, 9.4, colWidth - sx(6)).slice(0, 5);
       doc.text(objectiveLines, leftX + sx(3), ly);
-      ly += Math.max(1, objectiveLines.length) * sx(3.8) + sx(5);
+      ly += Math.max(1, objectiveLines.length) * sx(4.8) + sx(9);
 
       ry = section(rightX, colWidth, 'Predicted Disease', ry);
       const diseaseItems = (draft.predictedProblems || []).map((d: any) => {
@@ -454,30 +454,30 @@ export default function ConsultationPage() {
       setBody(9.4);
       const followLines = wrap(follow, 9.4, colWidth - sx(6)).slice(0, 4);
       doc.text(followLines, rightX + sx(3), ry);
-      ry += Math.max(1, followLines.length) * sx(3.8) + sx(5);
+      ry += Math.max(1, followLines.length) * sx(4.8) + sx(9);
 
       maxBottom = Math.max(ly, ry);
 
       // Clinical note is a normal-sized block. Keep it on page 1; the caller
       // will rerender at a smaller scale only if this natural layout overflows.
       const noteY = maxBottom + sx(5);
-      const noteText = draft.assessment || 'AI-assisted decision support. Review and confirm all clinical information before clinical use.';
+      const noteText = draft.assessment || 'Clinical findings and recommendations for treating clinician review.';
       const noteLines = wrap(noteText, 8.8, contentWidth - sx(8)).slice(0, 5);
-      const noteH = Math.max(sx(22), sx(10) + noteLines.length * sx(3.7));
+      const noteH = Math.max(sx(29), sx(14) + noteLines.length * sx(4.5));
       doc.setDrawColor(...border);
       doc.setFillColor(255, 255, 255);
       doc.roundedRect(margin, noteY, contentWidth, noteH, sx(1.7), sx(1.7), 'S');
       doc.setFont('helvetica', 'bold'); doc.setFontSize(sx(7.2)); doc.setTextColor(...muted);
-      doc.text('CLINICAL NOTE', margin + sx(3.5), noteY + sx(6));
+      doc.text('CLINICAL NOTE', margin + sx(3.5), noteY + sx(8));
       setBody(8.8);
-      doc.text(noteLines, margin + sx(3.5), noteY + sx(11));
+      doc.text(noteLines, margin + sx(3.5), noteY + sx(14));
 
       maxBottom = noteY + noteH;
 
       doc.setDrawColor(...blue);
       doc.line(margin, pageHeight - sx(13), pageWidth - margin, pageHeight - sx(13));
       doc.setFont('helvetica', 'normal'); doc.setFontSize(sx(7.2)); doc.setTextColor(...muted);
-      doc.text('AI-assisted decision support — treating clinician review required.', margin, pageHeight - sx(7.5));
+      doc.text('Prepared for treating clinician review.', margin, pageHeight - sx(7.5));
       doc.text(`Patient: ${patientName}`, pageWidth / 2, pageHeight - sx(7.5), { align: 'center' });
       doc.text('Page 1 of 1', pageWidth - margin, pageHeight - sx(7.5), { align: 'right' });
 
@@ -578,7 +578,7 @@ export default function ConsultationPage() {
             </div>
             {voiceError && <p className="error-text">{voiceError}</p>}
             <p className="hint-text">
-              The microphone captures the full consultation as one stream. The AI uses the complete conversation to prepare the clinical summary.
+              The microphone captures the full consultation as one stream. The complete conversation is used to prepare the clinical summary.
             </p>
           </section>
 
@@ -632,7 +632,7 @@ export default function ConsultationPage() {
           </section>
 
           <button className="primary end-button" disabled={busy} onClick={handleEndConsultation}>
-            {busy ? 'Generating draft…' : 'End consultation & generate AI draft'}
+            {busy ? 'Generating draft…' : 'End consultation & generate clinical draft'}
           </button>
         </>
       )}
@@ -641,14 +641,14 @@ export default function ConsultationPage() {
         <section className="panel soap-card">
           <div className="letterhead">
             <div>
-              <h2>{consultation.status === 'approved' ? 'Approved report' : 'AI consultation review'}</h2>
+              <h2>{consultation.status === 'approved' ? 'Approved report' : 'Clinical consultation review'}</h2>
               <p className="consult-sub">{consultation.doctorName} · {new Date(consultation.startedAt).toLocaleDateString()}</p>
             </div>
-            <span className="badge">{draft.generatedBy === 'groq' ? 'Groq AI' : 'AI draft'}</span>
+            <span className="badge">Clinical draft</span>
           </div>
 
           <div className="review-warning">
-            AI suggestions are decision support only. Review and confirm all clinical information before generating the PDF.
+            Review and confirm all clinical information before generating the PDF.
           </div>
 
           <div className="report-letterhead-preview">
@@ -740,7 +740,7 @@ export default function ConsultationPage() {
                 ))}
                 {!draft.predictedProblems?.length && <p className="empty-hint">No predicted disease identified.</p>}
                 {consultation.status === 'review' && <button type="button" className="secondary" onClick={() => setDraft({ ...draft, predictedProblems: [...(draft.predictedProblems || []), { label: '', severity: 'moderate', confidence: 'low', rationale: '' }] })}>+ Add predicted disease</button>}
-                <p className="hint-text">Predictions are decision support only and require clinician confirmation.</p>
+                <p className="hint-text">Possible conditions require clinician confirmation.</p>
               </div>
             )}
 
@@ -778,7 +778,7 @@ export default function ConsultationPage() {
           {consultation.status === 'review' && (
             <div className="export-row">
               <button className="primary" disabled={busy} onClick={handleApprove}>Confirm &amp; Generate PDF</button>
-              <button disabled={busy} onClick={async () => { const c = await api.regenerateDraft(consultation.id); setDraft(normalizeDraft(c.aiDraft)); }}>Regenerate AI analysis</button>
+              <button disabled={busy} onClick={async () => { const c = await api.regenerateDraft(consultation.id); setDraft(normalizeDraft(c.aiDraft)); }}>Regenerate clinical analysis</button>
             </div>
           )}
 

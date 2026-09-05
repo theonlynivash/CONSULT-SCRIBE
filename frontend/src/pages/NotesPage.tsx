@@ -366,7 +366,7 @@ export default function NotesPage() {
                 </div>
 
                 <div className="soap-section report-patient-facing-section">
-                  <h3>Predicted Disease <span className="report-ai-label">AI suggestion — doctor approved</span></h3>
+                  <h3>Predicted Disease <span className="report-ai-label">Clinician review required</span></h3>
                   {draft.predictedProblems?.length ? (
                     <ul className="differential-list">
                       {draft.predictedProblems.map((d, i) => (

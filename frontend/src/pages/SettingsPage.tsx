@@ -946,14 +946,14 @@ export default function SettingsPage() {
         <div className="settings-status-item">
 
           <span>
-            AI analysis
+            Clinical analysis
           </span>
 
           <strong>
             {status
               ? status.llmConfigured
-                ? 'LLM-powered'
-                : 'Offline heuristic'
+                ? 'Connected'
+                : 'Local mode'
               : 'Checking…'}
           </strong>
 
