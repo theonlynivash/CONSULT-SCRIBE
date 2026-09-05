@@ -85,6 +85,7 @@ async function callGroq(messages, options = {}) {
     body: JSON.stringify({
       model: process.env.GROQ_MODEL || process.env.GROK_MODEL || DEFAULT_MODEL,
       temperature: options.temperature ?? 0.1,
+      max_tokens: options.maxTokens ?? 900,
       response_format: { type: 'json_object' },
       messages,
     }),
