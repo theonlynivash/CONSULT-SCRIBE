@@ -6,23 +6,70 @@ import { sendReportEmail } from '../lib/mailer.js';
 
 export const consultationsRouter = Router();
 
-// The single most recent other consultation for this patient.
-// Prefer the doctor-approved finalReport when available.
-function findPreviousVisit(patientId, excludeId) {
+/*
+ * ============================================================
+ * SECURITY HELPERS
+ * ============================================================
+ *
+ * ownerUserId is the authenticated doctor's user ID.
+ *
+ * NEVER use doctorName for authorization.
+ * doctorName is only display information.
+ */
+
+/*
+ * Find a consultation ONLY if it belongs
+ * to the authenticated doctor.
+ */
+function findOwnedConsultation(id, userId) {
+  return db.data.consultations.find(
+    (c) =>
+      c.id === id &&
+      c.ownerUserId === userId
+  );
+}
+
+/*
+ * Find a patient ONLY if it belongs
+ * to the authenticated doctor.
+ */
+function findOwnedPatient(patientId, userId) {
+  return db.data.patients.find(
+    (p) =>
+      p.id === patientId &&
+      p.ownerUserId === userId
+  );
+}
+
+/*
+ * The single most recent previous consultation
+ * for THIS doctor's patient.
+ *
+ * IMPORTANT:
+ * Previous history must NEVER cross doctor boundaries.
+ */
+function findPreviousVisit(
+  patientId,
+  excludeId,
+  userId
+) {
   const others = db.data.consultations
     .filter(
       (c) =>
         c.patientId === patientId &&
+        c.ownerUserId === userId &&
         c.id !== excludeId &&
         (c.finalReport || c.aiDraft)
     )
     .sort(
       (a, b) =>
-        new Date(b.startedAt) - new Date(a.startedAt)
+        new Date(b.startedAt) -
+        new Date(a.startedAt)
     );
 
   const prior =
-    others.find((c) => c.finalReport) || others[0];
+    others.find((c) => c.finalReport) ||
+    others[0];
 
   if (!prior) return null;
 
@@ -38,17 +85,31 @@ function findPreviousVisit(patientId, excludeId) {
   };
 }
 
-// Notes workspace list
+/*
+ * ============================================================
+ * NOTES WORKSPACE
+ * ============================================================
+ */
 consultationsRouter.get('/', async (req, res) => {
   await db.read();
 
+  /*
+   * ONLY this doctor's consultations.
+   */
   const notes = db.data.consultations
-    .filter((c) => c.status !== 'active')
+    .filter(
+      (c) =>
+        c.ownerUserId === req.user.id &&
+        c.status !== 'active'
+    )
     .map((c) => ({
       ...c,
+
       patientName:
         db.data.patients.find(
-          (p) => p.id === c.patientId
+          (p) =>
+            p.id === c.patientId &&
+            p.ownerUserId === req.user.id
         )?.name ?? 'Unknown patient',
     }))
     .sort(
@@ -60,17 +121,31 @@ consultationsRouter.get('/', async (req, res) => {
   res.json(notes);
 });
 
-// Active consultations
+/*
+ * ============================================================
+ * ACTIVE CONSULTATIONS
+ * ============================================================
+ */
 consultationsRouter.get('/active', async (req, res) => {
   await db.read();
 
+  /*
+   * ONLY this doctor's active consultations.
+   */
   const active = db.data.consultations
-    .filter((c) => c.status === 'active')
+    .filter(
+      (c) =>
+        c.ownerUserId === req.user.id &&
+        c.status === 'active'
+    )
     .map((c) => ({
       ...c,
+
       patientName:
         db.data.patients.find(
-          (p) => p.id === c.patientId
+          (p) =>
+            p.id === c.patientId &&
+            p.ownerUserId === req.user.id
         )?.name ?? 'Unknown patient',
     }))
     .sort(
@@ -82,14 +157,31 @@ consultationsRouter.get('/active', async (req, res) => {
   res.json(active);
 });
 
-// Start a new consultation
+/*
+ * ============================================================
+ * START NEW CONSULTATION
+ * ============================================================
+ */
 consultationsRouter.post('/', async (req, res) => {
-  const { patientId, doctorName } = req.body;
+  const {
+    patientId,
+    doctorName,
+  } = req.body;
 
   await db.read();
 
-  const patient = db.data.patients.find(
-    (p) => p.id === patientId
+  /*
+   * SECURITY:
+   *
+   * The patient MUST belong to the authenticated doctor.
+   *
+   * This prevents:
+   *
+   * Doctor B → POST patientId belonging to Doctor A
+   */
+  const patient = findOwnedPatient(
+    patientId,
+    req.user.id
   );
 
   if (!patient) {
@@ -100,32 +192,62 @@ consultationsRouter.post('/', async (req, res) => {
 
   const consultation = {
     id: randomUUID(),
+
     patientId,
-    doctorName: doctorName || 'Dr. Unknown',
+
+    /*
+     * SECURITY:
+     * Ownership comes from the authenticated JWT.
+     */
+    ownerUserId: req.user.id,
+
+    /*
+     * Display value only.
+     * NEVER use this for authorization.
+     */
+    doctorName:
+      doctorName ||
+      req.user.name ||
+      'Dr. Unknown',
+
     status: 'active',
     startedAt: new Date().toISOString(),
     endedAt: null,
+
     transcript: [],
     vitals: [],
     aiDraft: null,
     finalReport: null,
   };
 
-  db.data.consultations.push(consultation);
+  db.data.consultations.push(
+    consultation
+  );
 
   await db.write();
 
   res.status(201).json(consultation);
 });
 
-// Get one consultation
+/*
+ * ============================================================
+ * GET ONE CONSULTATION
+ * ============================================================
+ */
 consultationsRouter.get('/:id', async (req, res) => {
   await db.read();
 
-  const c = db.data.consultations.find(
-    (c) => c.id === req.params.id
-  );
+  const c =
+    findOwnedConsultation(
+      req.params.id,
+      req.user.id
+    );
 
+  /*
+   * Same response for:
+   * - nonexistent consultation
+   * - another doctor's consultation
+   */
   if (!c) {
     return res.status(404).json({
       error: 'not found',
@@ -135,11 +257,18 @@ consultationsRouter.get('/:id', async (req, res) => {
   res.json(c);
 });
 
-// Add transcript manually
+/*
+ * ============================================================
+ * ADD TRANSCRIPT
+ * ============================================================
+ */
 consultationsRouter.post(
   '/:id/transcript',
   async (req, res) => {
-    const { speaker, text } = req.body;
+    const {
+      speaker,
+      text,
+    } = req.body;
 
     if (!speaker || !text) {
       return res.status(400).json({
@@ -150,15 +279,20 @@ consultationsRouter.post(
 
     await db.read();
 
-    const c = db.data.consultations.find(
-      (c) => c.id === req.params.id
-    );
+    const c =
+      findOwnedConsultation(
+        req.params.id,
+        req.user.id
+      );
 
     if (!c) {
       return res.status(404).json({
         error: 'not found',
       });
     }
+
+    c.transcript =
+      c.transcript || [];
 
     c.transcript.push({
       speaker,
@@ -172,7 +306,11 @@ consultationsRouter.post(
   }
 );
 
-// Vitals
+/*
+ * ============================================================
+ * VITALS
+ * ============================================================
+ */
 consultationsRouter.post(
   '/:id/vitals',
   async (req, res) => {
@@ -195,9 +333,11 @@ consultationsRouter.post(
 
     await db.read();
 
-    const c = db.data.consultations.find(
-      (c) => c.id === req.params.id
-    );
+    const c =
+      findOwnedConsultation(
+        req.params.id,
+        req.user.id
+      );
 
     if (!c) {
       return res.status(404).json({
@@ -205,11 +345,15 @@ consultationsRouter.post(
       });
     }
 
+    c.vitals =
+      c.vitals || [];
+
     c.vitals.push({
       type,
       value,
       unit: unit ?? '',
-      source: source || 'manual',
+      source:
+        source || 'manual',
       at: new Date().toISOString(),
     });
 
@@ -219,15 +363,21 @@ consultationsRouter.post(
   }
 );
 
-// End consultation → generate AI suggestion
+/*
+ * ============================================================
+ * END CONSULTATION → GENERATE AI SUGGESTION
+ * ============================================================
+ */
 consultationsRouter.post(
   '/:id/end',
   async (req, res) => {
     await db.read();
 
-    const c = db.data.consultations.find(
-      (c) => c.id === req.params.id
-    );
+    const c =
+      findOwnedConsultation(
+        req.params.id,
+        req.user.id
+      );
 
     if (!c) {
       return res.status(404).json({
@@ -235,10 +385,21 @@ consultationsRouter.post(
       });
     }
 
+    /*
+     * Defense-in-depth:
+     * patient must also belong to this doctor.
+     */
     const patient =
-      db.data.patients.find(
-        (p) => p.id === c.patientId
+      findOwnedPatient(
+        c.patientId,
+        req.user.id
       );
+
+    if (!patient) {
+      return res.status(404).json({
+        error: 'not found',
+      });
+    }
 
     c.endedAt =
       new Date().toISOString();
@@ -246,30 +407,49 @@ consultationsRouter.post(
     c.status = 'review';
 
     let analysis;
+
     try {
-      analysis = await analyzeConsultation(c, patient);
+      analysis =
+        await analyzeConsultation(
+          c,
+          patient
+        );
     } catch (err) {
-      console.error('Consultation analysis failed:', err.message);
+      console.error(
+        'Consultation analysis failed:',
+        err.message
+      );
+
       return res.status(502).json({
-        error: err.message || 'AI analysis failed. Check GROQ_API_KEY.',
-        code: 'AI_PROVIDER_ERROR',
+        error:
+          err.message ||
+          'AI analysis failed. Check GROQ_API_KEY.',
+        code:
+          'AI_PROVIDER_ERROR',
       });
     }
 
-    // IMPORTANT:
-    // This is ONLY an AI suggestion.
-    // It is NOT the final clinical decision.
+    /*
+     * IMPORTANT:
+     *
+     * Previous history is restricted
+     * to this authenticated doctor.
+     */
     c.aiDraft = {
       ...analysis,
+
       previousVisit:
         findPreviousVisit(
           c.patientId,
-          c.id
+          c.id,
+          req.user.id
         ),
     };
 
-    // Never automatically copy AI draft
-    // into finalReport.
+    /*
+     * AI suggestion is NOT automatically
+     * the final clinical decision.
+     */
     c.finalReport = null;
 
     await db.write();
@@ -278,12 +458,17 @@ consultationsRouter.post(
   }
 );
 
-// Doctor approves edited report
+/*
+ * ============================================================
+ * DOCTOR APPROVES EDITED REPORT
+ * ============================================================
+ */
 consultationsRouter.post(
   '/:id/approve',
   async (req, res) => {
-    const { finalReport } =
-      req.body;
+    const {
+      finalReport,
+    } = req.body;
 
     if (!finalReport) {
       return res.status(400).json({
@@ -294,9 +479,11 @@ consultationsRouter.post(
 
     await db.read();
 
-    const c = db.data.consultations.find(
-      (c) => c.id === req.params.id
-    );
+    const c =
+      findOwnedConsultation(
+        req.params.id,
+        req.user.id
+      );
 
     if (!c) {
       return res.status(404).json({
@@ -305,22 +492,12 @@ consultationsRouter.post(
     }
 
     /*
-     * IMPORTANT ARCHITECTURE:
-     *
-     * aiDraft    = AI suggestion
+     * AI draft = suggestion
      * finalReport = doctor's approved decision
-     *
-     * After this point finalReport is the
-     * SINGLE SOURCE OF TRUTH for:
-     *
-     * - Reports page
-     * - PDF
-     * - Patient email
-     * - Future consultation history
      */
-
     c.finalReport = {
       ...finalReport,
+
       approvedAt:
         new Date().toISOString(),
     };
@@ -333,7 +510,11 @@ consultationsRouter.post(
   }
 );
 
-// Send the EXACT approved PDF to patient
+/*
+ * ============================================================
+ * SEND APPROVED PDF TO PATIENT
+ * ============================================================
+ */
 consultationsRouter.post(
   '/:id/email',
   async (req, res) => {
@@ -344,9 +525,11 @@ consultationsRouter.post(
 
     await db.read();
 
-    const c = db.data.consultations.find(
-      (c) => c.id === req.params.id
-    );
+    const c =
+      findOwnedConsultation(
+        req.params.id,
+        req.user.id
+      );
 
     if (!c) {
       return res.status(404).json({
@@ -354,7 +537,9 @@ consultationsRouter.post(
       });
     }
 
-    // NEVER allow an AI-only draft to be emailed.
+    /*
+     * Never allow AI-only drafts to be emailed.
+     */
     if (
       c.status !== 'approved' ||
       !c.finalReport
@@ -365,10 +550,20 @@ consultationsRouter.post(
       });
     }
 
+    /*
+     * Patient must belong to the same doctor.
+     */
     const patient =
-      db.data.patients.find(
-        (p) => p.id === c.patientId
+      findOwnedPatient(
+        c.patientId,
+        req.user.id
       );
+
+    if (!patient) {
+      return res.status(404).json({
+        error: 'not found',
+      });
+    }
 
     const result =
       await sendReportEmail({
@@ -382,15 +577,21 @@ consultationsRouter.post(
   }
 );
 
-// Regenerate AI suggestion
+/*
+ * ============================================================
+ * REGENERATE AI SUGGESTION
+ * ============================================================
+ */
 consultationsRouter.post(
   '/:id/regenerate',
   async (req, res) => {
     await db.read();
 
-    const c = db.data.consultations.find(
-      (c) => c.id === req.params.id
-    );
+    const c =
+      findOwnedConsultation(
+        req.params.id,
+        req.user.id
+      );
 
     if (!c) {
       return res.status(404).json({
@@ -406,31 +607,54 @@ consultationsRouter.post(
     }
 
     const patient =
-      db.data.patients.find(
-        (p) => p.id === c.patientId
+      findOwnedPatient(
+        c.patientId,
+        req.user.id
       );
 
+    if (!patient) {
+      return res.status(404).json({
+        error: 'not found',
+      });
+    }
+
     let analysis;
+
     try {
-      analysis = await analyzeConsultation(c, patient);
+      analysis =
+        await analyzeConsultation(
+          c,
+          patient
+        );
     } catch (err) {
-      console.error('Consultation regeneration failed:', err.message);
+      console.error(
+        'Consultation regeneration failed:',
+        err.message
+      );
+
       return res.status(502).json({
-        error: err.message || 'AI analysis failed. Check GROQ_API_KEY.',
-        code: 'AI_PROVIDER_ERROR',
+        error:
+          err.message ||
+          'AI analysis failed. Check GROQ_API_KEY.',
+        code:
+          'AI_PROVIDER_ERROR',
       });
     }
 
     c.aiDraft = {
       ...analysis,
+
       previousVisit:
         findPreviousVisit(
           c.patientId,
-          c.id
+          c.id,
+          req.user.id
         ),
     };
 
-    // Still only an AI suggestion.
+    /*
+     * Still only an AI suggestion.
+     */
     c.finalReport = null;
 
     await db.write();
@@ -439,7 +663,16 @@ consultationsRouter.post(
   }
 );
 
-// Smart Changes
+/*
+ * ============================================================
+ * SMART CHANGES
+ * ============================================================
+ *
+ * This endpoint is intentionally stateless.
+ * Nothing is saved here.
+ *
+ * The supplied draft is refined and returned.
+ */
 consultationsRouter.post(
   '/:id/refine',
   async (req, res) => {
@@ -455,29 +688,70 @@ consultationsRouter.post(
       });
     }
 
-    let revised;
-    try {
-      revised = await refineDraft(draft, instruction);
-    } catch (err) {
-      console.error('Draft refinement failed:', err.message);
-      return res.status(502).json({
-        error: err.message || 'AI refinement failed. Check GROQ_API_KEY.',
-        code: 'AI_PROVIDER_ERROR',
+    /*
+     * SECURITY:
+     *
+     * Even though this endpoint is stateless,
+     * verify that the consultation belongs
+     * to the authenticated doctor before
+     * allowing refinement for that consultation.
+     */
+    await db.read();
+
+    const c =
+      findOwnedConsultation(
+        req.params.id,
+        req.user.id
+      );
+
+    if (!c) {
+      return res.status(404).json({
+        error: 'not found',
       });
     }
 
-    // Stateless:
-    // Nothing is saved until doctor approves.
+    let revised;
+
+    try {
+      revised =
+        await refineDraft(
+          draft,
+          instruction
+        );
+    } catch (err) {
+      console.error(
+        'Draft refinement failed:',
+        err.message
+      );
+
+      return res.status(502).json({
+        error:
+          err.message ||
+          'AI refinement failed. Check GROQ_API_KEY.',
+        code:
+          'AI_PROVIDER_ERROR',
+      });
+    }
+
+    /*
+     * Stateless:
+     * Nothing is saved until doctor approves.
+     */
     res.json(revised);
   }
 );
 
-// AI feedback
+/*
+ * ============================================================
+ * AI FEEDBACK
+ * ============================================================
+ */
 consultationsRouter.post(
   '/:id/feedback',
   async (req, res) => {
-    const { rating } =
-      req.body;
+    const {
+      rating,
+    } = req.body;
 
     if (
       rating !== 'up' &&
@@ -491,9 +765,11 @@ consultationsRouter.post(
 
     await db.read();
 
-    const c = db.data.consultations.find(
-      (c) => c.id === req.params.id
-    );
+    const c =
+      findOwnedConsultation(
+        req.params.id,
+        req.user.id
+      );
 
     if (!c) {
       return res.status(404).json({
@@ -511,19 +787,34 @@ consultationsRouter.post(
 
     await db.write();
 
-    res.json({ ok: true });
+    res.json({
+      ok: true,
+    });
   }
 );
 
-// Delete consultation
+/*
+ * ============================================================
+ * DELETE CONSULTATION
+ * ============================================================
+ */
 consultationsRouter.delete(
   '/:id',
   async (req, res) => {
     await db.read();
 
+    /*
+     * IMPORTANT:
+     *
+     * Find by BOTH:
+     * consultation ID
+     * authenticated owner
+     */
     const idx =
       db.data.consultations.findIndex(
-        (c) => c.id === req.params.id
+        (c) =>
+          c.id === req.params.id &&
+          c.ownerUserId === req.user.id
       );
 
     if (idx === -1) {

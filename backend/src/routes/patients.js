@@ -5,16 +5,43 @@ import { db } from '../db.js';
 export const patientsRouter = Router();
 
 /*
+ * SECURITY MODEL
+ *
+ * Every patient belongs to exactly one authenticated doctor.
+ *
+ * ownerUserId is NEVER accepted from req.body.
+ * It is ALWAYS taken from req.user.id.
+ *
+ * req.user.id comes from the verified JWT.
+ */
+
+/*
  * GET ALL PATIENTS
+ *
+ * IMPORTANT:
+ * Only return patients owned by the currently
+ * authenticated doctor.
+ *
+ * Legacy patients without ownerUserId are intentionally
+ * NOT returned.
  */
 patientsRouter.get('/', async (req, res) => {
   await db.read();
 
-  res.json(db.data.patients);
+  const patients = db.data.patients.filter(
+    (patient) =>
+      patient.ownerUserId === req.user.id
+  );
+
+  res.json(patients);
 });
 
 /*
  * CREATE PATIENT
+ *
+ * The owner is ALWAYS the authenticated doctor.
+ *
+ * Never trust ownerUserId from the frontend.
  */
 patientsRouter.post('/', async (req, res) => {
   const {
@@ -33,6 +60,12 @@ patientsRouter.post('/', async (req, res) => {
 
   const patient = {
     id: randomUUID(),
+
+    // SECURITY:
+    // ownership comes from the authenticated JWT,
+    // NOT from the request body.
+    ownerUserId: req.user.id,
+
     name,
     age: age ?? null,
     sex: sex ?? null,
@@ -52,23 +85,45 @@ patientsRouter.post('/', async (req, res) => {
 
 /*
  * GET ONE PATIENT + ALL CONSULTATIONS
+ *
+ * A doctor can only access their own patient.
  */
 patientsRouter.get('/:id', async (req, res) => {
   await db.read();
 
   const patient = db.data.patients.find(
-    (p) => p.id === req.params.id
+    (p) =>
+      p.id === req.params.id &&
+      p.ownerUserId === req.user.id
   );
 
+  /*
+   * IMPORTANT:
+   * Return the same 404 whether the patient doesn't exist
+   * or belongs to another doctor.
+   *
+   * This avoids revealing whether another doctor's
+   * patient ID exists.
+   */
   if (!patient) {
     return res.status(404).json({
       error: 'not found',
     });
   }
 
+  /*
+   * Only return consultations belonging to:
+   *
+   * 1. this patient
+   * 2. this authenticated doctor
+   *
+   * The second check is defense-in-depth.
+   */
   const consultations = db.data.consultations
     .filter(
-      (c) => c.patientId === patient.id
+      (c) =>
+        c.patientId === patient.id &&
+        c.ownerUserId === req.user.id
     )
     .sort(
       (a, b) =>
@@ -86,23 +141,20 @@ patientsRouter.get('/:id', async (req, res) => {
  * DELETE PATIENT
  *
  * IMPORTANT:
- * This permanently deletes:
+ * This can ONLY delete a patient belonging
+ * to the authenticated doctor.
  *
- * 1. Patient
- * 2. All consultations belonging to patient
- * 3. Their transcripts
- * 4. Their vitals
- * 5. Their AI drafts
- * 6. Their doctor-approved final reports
- *
- * It does NOT affect any other patient.
+ * It also deletes that patient's consultations,
+ * but ONLY consultations owned by the same doctor.
  */
 patientsRouter.delete('/:id', async (req, res) => {
   await db.read();
 
   const patientIndex =
     db.data.patients.findIndex(
-      (p) => p.id === req.params.id
+      (p) =>
+        p.id === req.params.id &&
+        p.ownerUserId === req.user.id
     );
 
   if (patientIndex === -1) {
@@ -115,22 +167,25 @@ patientsRouter.delete('/:id', async (req, res) => {
     db.data.patients[patientIndex];
 
   /*
-   * Find all consultations belonging
-   * to this patient before deleting them.
+   * Find consultations belonging to:
+   *
+   * - this patient
+   * - this authenticated doctor
    */
   const patientConsultationIds =
     new Set(
       db.data.consultations
         .filter(
           (c) =>
-            c.patientId === patient.id
+            c.patientId === patient.id &&
+            c.ownerUserId === req.user.id
         )
         .map((c) => c.id)
     );
 
   /*
-   * Remove all consultations belonging
-   * to this patient.
+   * Remove ONLY this doctor's consultations
+   * for this patient.
    */
   const originalConsultationCount =
     db.data.consultations.length;
@@ -138,7 +193,10 @@ patientsRouter.delete('/:id', async (req, res) => {
   db.data.consultations =
     db.data.consultations.filter(
       (c) =>
-        c.patientId !== patient.id
+        !(
+          c.patientId === patient.id &&
+          c.ownerUserId === req.user.id
+        )
     );
 
   const deletedConsultationCount =
@@ -170,8 +228,6 @@ patientsRouter.delete('/:id', async (req, res) => {
       deletedConsultationCount,
 
     deletedConsultationIds:
-      Array.from(
-        patientConsultationIds
-      ),
+      Array.from(patientConsultationIds),
   });
 });
