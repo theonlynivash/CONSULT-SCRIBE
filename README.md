@@ -12,7 +12,7 @@
 [![Render](https://img.shields.io/badge/Render-46E3B7?style=for-the-badge&logo=render&logoColor=white)](#)
 [![GitHub](https://img.shields.io/badge/GitHub-181717?style=for-the-badge&logo=github&logoColor=white)](https://github.com/theonlynivash/CONSULT-SCRIBE)
 
-**[Live Demo →](https://consult-scribe.vercel.app)**
+**[CLICK TO VISIT THE WEBSAPP](https://consult-scribe-web.vercel.app)**
 
 </div>
 
