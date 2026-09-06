@@ -6,6 +6,24 @@ import AuthLayout from '../components/AuthLayout';
 import PasswordField from '../components/PasswordField';
 import SocialAuthButtons from '../components/SocialAuthButtons';
 
+function MailIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect width="20" height="16" x="2" y="4" rx="2" />
+      <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
+    </svg>
+  );
+}
+
+function ArrowRightIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M5 12h14" />
+      <path d="m12 5 7 7-7 7" />
+    </svg>
+  );
+}
+
 export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -53,19 +71,23 @@ export default function LoginPage() {
   return (
     <AuthLayout>
       <form className="clay-card" onSubmit={handleSubmit}>
-        <h1>Welcome back</h1>
-        <p className="clay-sub">Sign in to continue to your dashboard</p>
+        <h1 className="clay-login-header">LOGIN</h1>
 
         <label className="clay-label">Email</label>
-        <input
-          className={`clay-input${shake.email ? ' clay-shake' : ''}`}
-          type="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          required
-          autoFocus
-          placeholder=" "
-        />
+        <div className={`clay-input-wrap${shake.email ? ' clay-shake' : ''}`}>
+          <span className="clay-input-left-icon">
+            <MailIcon />
+          </span>
+          <input
+            className="clay-input has-left-icon"
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+            autoFocus
+            placeholder="Enter your email"
+          />
+        </div>
 
         <div className="clay-label-row">
           <label className="clay-label">Password</label>
@@ -79,6 +101,7 @@ export default function LoginPage() {
           required
           autoComplete="current-password"
           shake={shake.password}
+          placeholder="Enter your password"
         />
 
         {noAccount && (
@@ -89,8 +112,9 @@ export default function LoginPage() {
         {googleAccount && <p className="clay-error">This account uses Google sign-in — use the button below.</p>}
         {error && <p className="clay-error">{error}</p>}
 
-        <button className="clay-submit" disabled={busy} type="submit">
-          {busy ? 'Signing in…' : 'Sign in'}
+        <button className="clay-submit clay-shimmer-btn" disabled={busy} type="submit">
+          <span>{busy ? 'Signing in…' : 'Sign in'}</span>
+          {!busy && <ArrowRightIcon />}
         </button>
 
         <SocialAuthButtons onSuccess={() => navigate(from, { replace: true })} />

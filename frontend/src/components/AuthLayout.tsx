@@ -1,5 +1,9 @@
 import type { ReactNode } from 'react';
 import { useTheme } from '../theme';
+import Meteors from './Meteors';
+import OrbitingCircles from './OrbitingCircles';
+import Particles from './Particles';
+import Ripple from './Ripple';
 
 function SunIcon() {
   return (
@@ -18,11 +22,60 @@ function MoonIcon() {
   );
 }
 
+function BrandMark() {
+  return (
+    <>
+      <div className="clay-logo-ring">
+        <div className="clay-logo-circle">
+          <img src="/logo.png" alt="Consult Scribe" className="clay-visual-logo" />
+        </div>
+      </div>
+      <h2 className="clay-visual-name clay-shine-text">
+        <span>CONSULT</span>
+        <span>S C R I B E</span>
+      </h2>
+      <div className="clay-visual-company">KERNUL TECH</div>
+    </>
+  );
+}
+
+function AmbientEffects() {
+  return (
+    <div className="clay-ambient-effects" aria-hidden="true">
+      <span className="clay-light-ray clay-light-ray-a" />
+      <span className="clay-light-ray clay-light-ray-b" />
+      <span className="clay-light-ray clay-light-ray-c" />
+      <span className="clay-grid-pulse clay-grid-pulse-a" />
+      <span className="clay-grid-pulse clay-grid-pulse-b" />
+      <span className="clay-grid-pulse clay-grid-pulse-c" />
+    </div>
+  );
+}
+
+function ForegroundSparks() {
+  return (
+    <div className="clay-foreground-sparks" aria-hidden="true">
+      <span className="clay-comet clay-comet-a" />
+      <span className="clay-comet clay-comet-b" />
+      <span className="clay-comet clay-comet-c" />
+      <span className="clay-comet clay-comet-d" />
+      <span className="clay-spark clay-spark-a" />
+      <span className="clay-spark clay-spark-b" />
+      <span className="clay-spark clay-spark-c" />
+      <span className="clay-spark clay-spark-d" />
+    </div>
+  );
+}
+
 export default function AuthLayout({ children, visual }: { children: ReactNode; visual?: ReactNode }) {
   const { theme, toggleTheme } = useTheme();
 
   return (
     <div className="clay-backdrop">
+      <Particles color={theme === 'dark' ? '#ffcf40' : '#c48a08'} quantity={theme === 'dark' ? 70 : 52} />
+      <AmbientEffects />
+      <ForegroundSparks />
+
       <button
         type="button"
         className="clay-theme-toggle"
@@ -39,51 +92,32 @@ export default function AuthLayout({ children, visual }: { children: ReactNode; 
       <div className="clay-glow clay-glow-e" />
 
       <div className="clay-shell">
+        <span className="clay-border-beam" aria-hidden="true" />
         <div className="clay-visual-panel">
           {visual ?? (
             <div className="clay-visual-content">
-              <div className="clay-logo-ring">
-                <div className="clay-logo-circle">
-                  <img src="/logo.png" alt="Consult Scribe" className="clay-visual-logo" />
+              <Ripple />
+              <Meteors />
+              <div className="clay-logo-stage">
+                <OrbitingCircles />
+                <div className="clay-logo-ring">
+                  <div className="clay-logo-circle">
+                    <img src="/logo.png" alt="Consult Scribe" className="clay-visual-logo" />
+                  </div>
                 </div>
               </div>
-              <div className="clay-visual-badge">KERNUL TECH PVT LTD</div>
-              <h2 className="clay-visual-name">Consult Scribe</h2>
-              <p className="clay-visual-desc">Ambient Clinical Intelligence & Documentation</p>
-              <div className="clay-live-pill">
-                <span className="clay-live-dot" />
-                <span className="clay-live-text">Real-time Scribe Online</span>
-                <span className="clay-live-waves">
-                  <span className="live-wave-bar b1" />
-                  <span className="live-wave-bar b2" />
-                  <span className="live-wave-bar b3" />
-                  <span className="live-wave-bar b4" />
-                </span>
-              </div>
+              <h2 className="clay-visual-name clay-shine-text">
+                <span>CONSULT</span>
+                <span>S C R I B E</span>
+              </h2>
+              <div className="clay-visual-company">KERNUL TECH</div>
             </div>
           )}
         </div>
 
         <div className="clay-form-panel">
           <div className="clay-mobile-brand">
-            <div className="clay-mobile-logo-wrap">
-              <img src="/logo.png" alt="Consult Scribe" className="clay-mobile-logo" />
-              <div className="clay-mobile-glow-ring" />
-            </div>
-            <div className="clay-mobile-meta">
-              <span className="clay-mobile-company">KERNUL TECH PVT LTD</span>
-              <span className="clay-mobile-app-title">Consult Scribe</span>
-            </div>
-            <div className="clay-live-pill">
-              <span className="clay-live-dot" />
-              <span className="clay-live-text">Live Workspace</span>
-              <span className="clay-live-waves">
-                <span className="live-wave-bar b1" />
-                <span className="live-wave-bar b2" />
-                <span className="live-wave-bar b3" />
-                <span className="live-wave-bar b4" />
-              </span>
-            </div>
+            <BrandMark />
           </div>
           {children}
         </div>

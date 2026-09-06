@@ -28,6 +28,13 @@ function AppShell() {
   const location = useLocation();
   return (
     <div className="app-shell">
+      <div className="app-dynamic-background" aria-hidden="true">
+        <span className="app-mesh-light app-mesh-light-a" />
+        <span className="app-mesh-light app-mesh-light-b" />
+        <span className="app-mesh-light app-mesh-light-c" />
+        <span className="app-background-ray app-background-ray-a" />
+        <span className="app-background-ray app-background-ray-b" />
+      </div>
       <NavBar />
       <main className="app-main">
         <div className="app-page-transition" key={location.pathname}>
