@@ -191,9 +191,10 @@ export default function AboutPage() {
         </p>
 
         <div className="about-pills">
-          <span>CHROME SPEECH</span>
-          <span>CLINICAL WORKFLOW</span>
-          <span>DOCTOR-CONTROLLED</span>
+          <a href="#architecture" className="about-golden-tab">⚡ ARCHITECTURE</a>
+          <a href="#features" className="about-golden-tab">✨ CLINICAL WORKFLOW</a>
+          <a href="#stack" className="about-golden-tab">🛡️ LOCAL-FIRST STACK</a>
+          <a href="#control" className="about-golden-tab">👨‍⚕️ DOCTOR-CONTROLLED</a>
         </div>
 
         <a className="about-scroll-cue" href="#architecture">
