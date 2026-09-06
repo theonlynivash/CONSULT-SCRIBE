@@ -60,12 +60,39 @@ export default function Dashboard() {
     });
   }, []);
 
-  const todayCount = [...active, ...notes].filter((c) => isToday(c.startedAt)).length;
-  const reviewCount = notes.filter((c) => c.status === 'review').length;
-  const nextConsultation = active[0];
-  const recent = notes.slice(0, 5);
+  const markedDates = useMemo(() => new Set([...active, ...notes].map((c) => dateKey(c.startedAt))), [active, notes]);
+  const [selectedDate, setSelectedDate] = useState<string>('');
+
+  useEffect(() => {
+    if (markedDates.size > 0 && !selectedDate) {
+      const sorted = Array.from(markedDates).sort().reverse();
+      setSelectedDate(sorted[0]);
+    }
+  }, [markedDates, selectedDate]);
+
+  const selectedConsultations = useMemo(() => {
+    if (!selectedDate) return notes;
+    return notes.filter((n) => dateKey(n.startedAt) === selectedDate);
+  }, [notes, selectedDate]);
+
+  const selectedActive = useMemo(() => {
+    if (!selectedDate) return active;
+    return active.filter((a) => dateKey(a.startedAt) === selectedDate);
+  }, [active, selectedDate]);
+
+  const allSelectedDay = useMemo(() => {
+    return [...selectedActive, ...selectedConsultations];
+  }, [selectedActive, selectedConsultations]);
+
+  const selectedDateLabel = useMemo(() => {
+    if (!selectedDate) return 'Today';
+    const [y, m, d] = selectedDate.split('-').map(Number);
+    if (!y || !m || !d) return 'Today';
+    const dateObj = new Date(y, m - 1, d);
+    return dateObj.toLocaleDateString([], { month: 'long', day: 'numeric' });
+  }, [selectedDate]);
+
   const micAvailable = typeof window !== 'undefined' && !!(window.SpeechRecognition || window.webkitSpeechRecognition);
-  const markedDates = new Set([...active, ...notes].map((c) => dateKey(c.startedAt)));
   const letterheadComplete = useMemo(() => Boolean(user?.workplaceName?.trim() && user?.workplaceAddress?.trim()), [user?.workplaceName, user?.workplaceAddress]);
 
   function dismissLetterheadNotice() {
@@ -109,25 +136,36 @@ export default function Dashboard() {
         </section>
 
         <aside className="home-calendar-card">
-          <MiniCalendar markedDates={markedDates} />
+          <MiniCalendar
+            markedDates={markedDates}
+            selectedDate={selectedDate}
+            onSelectDate={(key) => setSelectedDate(key)}
+          />
         </aside>
       </div>
 
       {loaded && (
         <>
           <section className="home-stats">
-            <h2 className="home-section-label">Today</h2>
+            <div className="home-stats-header">
+              <h2 className="home-section-label">Consultations • {selectedDateLabel}</h2>
+              <span className="home-date-filter-pill">
+                {allSelectedDay.length} consultation{allSelectedDay.length === 1 ? '' : 's'} recorded
+              </span>
+            </div>
             <div className="home-stats-grid">
               <div className="stat-card">
-                <span className="stat-value">{todayCount}</span>
-                <span className="stat-label">Consultations</span>
+                <span className="stat-value">{allSelectedDay.length}</span>
+                <span className="stat-label">Total for day</span>
               </div>
               <div className="stat-card">
-                <span className="stat-value">{active.length}</span>
+                <span className="stat-value">{selectedActive.length}</span>
                 <span className="stat-label">In progress</span>
               </div>
               <div className="stat-card">
-                <span className="stat-value">{reviewCount}</span>
+                <span className="stat-value">
+                  {selectedConsultations.filter((c) => c.status === 'review').length}
+                </span>
                 <span className="stat-label">Notes ready</span>
               </div>
             </div>
@@ -135,19 +173,19 @@ export default function Dashboard() {
 
           <section className="home-split">
             <div className="panel home-split-col">
-              <h2 className="home-section-label">Next consultation</h2>
-              {nextConsultation ? (
+              <h2 className="home-section-label">Active on {selectedDateLabel}</h2>
+              {selectedActive[0] ? (
                 <div className="home-next">
                   <div>
-                    <p className="home-next-name">{nextConsultation.patientName}</p>
-                    <p className="home-next-meta">In progress since {formatTime(nextConsultation.startedAt)}</p>
+                    <p className="home-next-name">{selectedActive[0].patientName}</p>
+                    <p className="home-next-meta">In progress since {formatTime(selectedActive[0].startedAt)}</p>
                   </div>
-                  <button type="button" onClick={() => navigate(`/consultation/${nextConsultation.id}`)}>
+                  <button type="button" onClick={() => navigate(`/consultation/${selectedActive[0].id}`)}>
                     Continue
                   </button>
                 </div>
               ) : (
-                <p className="empty-hint">No consultation in progress right now.</p>
+                <p className="empty-hint">No active consultations in progress for {selectedDateLabel}.</p>
               )}
             </div>
 
@@ -172,16 +210,30 @@ export default function Dashboard() {
 
           <section className="panel home-recent">
             <div className="home-recent-header">
-              <h2 className="home-section-label">Recent consultations</h2>
+              <div>
+                <h2 className="home-section-label">Reports on {selectedDateLabel}</h2>
+                <span className="home-recent-sub">
+                  Showing {selectedConsultations.length} report{selectedConsultations.length === 1 ? '' : 's'} on this day
+                </span>
+              </div>
               <Link to="/notes" className="home-view-all">
-                View all &rarr;
+                View all notes &rarr;
               </Link>
             </div>
-            {recent.length ? (
+            {selectedConsultations.length ? (
               <ul className="home-recent-list">
-                {recent.map((n) => (
-                  <li key={n.id} className="home-recent-row">
-                    <span className="home-recent-name">{n.patientName}</span>
+                {selectedConsultations.map((n) => (
+                  <li
+                    key={n.id}
+                    className="home-recent-row"
+                    style={{ cursor: 'pointer' }}
+                    onClick={() => navigate(`/consultation/${n.id}`)}
+                    title="Click to view consultation report"
+                  >
+                    <div className="home-recent-col">
+                      <span className="home-recent-name">{n.patientName}</span>
+                      <span className="home-recent-time">Started at {formatTime(n.startedAt)}</span>
+                    </div>
                     <span className="home-recent-date">{new Date(n.startedAt).toLocaleDateString()}</span>
                     <span className={`home-status-badge ${n.status}`}>
                       {n.status === 'approved' ? '✓ Completed' : '📝 Review'}
@@ -190,7 +242,7 @@ export default function Dashboard() {
                 ))}
               </ul>
             ) : (
-              <p className="empty-hint">No consultations yet — start one above.</p>
+              <p className="empty-hint">No completed consultation reports for {selectedDateLabel}.</p>
             )}
           </section>
         </>

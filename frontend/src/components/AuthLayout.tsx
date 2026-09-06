@@ -41,14 +41,52 @@ export default function AuthLayout({ children, visual }: { children: ReactNode; 
       <div className="clay-shell">
         <div className="clay-visual-panel">
           {visual ?? (
-            <>
-              <img src="/logo.png" alt="Consult" className="clay-visual-logo" />
-              <span className="clay-visual-name">Consult Scribe</span>
-            </>
+            <div className="clay-visual-content">
+              <div className="clay-logo-ring">
+                <div className="clay-logo-circle">
+                  <img src="/logo.png" alt="Consult Scribe" className="clay-visual-logo" />
+                </div>
+              </div>
+              <div className="clay-visual-badge">KERNUL TECH PVT LTD</div>
+              <h2 className="clay-visual-name">Consult Scribe</h2>
+              <p className="clay-visual-desc">Ambient Clinical Intelligence & Documentation</p>
+              <div className="clay-live-pill">
+                <span className="clay-live-dot" />
+                <span className="clay-live-text">Real-time Scribe Online</span>
+                <span className="clay-live-waves">
+                  <span className="live-wave-bar b1" />
+                  <span className="live-wave-bar b2" />
+                  <span className="live-wave-bar b3" />
+                  <span className="live-wave-bar b4" />
+                </span>
+              </div>
+            </div>
           )}
         </div>
 
-        <div className="clay-form-panel">{children}</div>
+        <div className="clay-form-panel">
+          <div className="clay-mobile-brand">
+            <div className="clay-mobile-logo-wrap">
+              <img src="/logo.png" alt="Consult Scribe" className="clay-mobile-logo" />
+              <div className="clay-mobile-glow-ring" />
+            </div>
+            <div className="clay-mobile-meta">
+              <span className="clay-mobile-company">KERNUL TECH PVT LTD</span>
+              <span className="clay-mobile-app-title">Consult Scribe</span>
+            </div>
+            <div className="clay-live-pill">
+              <span className="clay-live-dot" />
+              <span className="clay-live-text">Live Workspace</span>
+              <span className="clay-live-waves">
+                <span className="live-wave-bar b1" />
+                <span className="live-wave-bar b2" />
+                <span className="live-wave-bar b3" />
+                <span className="live-wave-bar b4" />
+              </span>
+            </div>
+          </div>
+          {children}
+        </div>
       </div>
 
       <footer className="clay-footer">© 2026 Srinivash Karthikeyan. All Rights Reserved.</footer>

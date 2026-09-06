@@ -189,9 +189,26 @@ export default function NavBar() {
   return (
     <>
     <header className="app-topnav">
-      <Link to="/" className="app-logo">
+      <Link to="/" className="app-logo" style={{ textDecoration: 'none' }}>
         <img src="/logo.png" alt="Consult Scribe" />
+        <span className="app-logo-text">Consult Scribe</span>
       </Link>
+
+      <div className="app-topnav-mobile-actions">
+        <button type="button" className="app-icon-btn app-bell-btn" title="Notifications" aria-label="Notifications">
+          <BellIcon />
+          <span className="app-bell-badge">9+</span>
+        </button>
+        <button
+          type="button"
+          className="app-icon-btn"
+          onClick={toggleTheme}
+          title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+          aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+        >
+          {theme === 'dark' ? <SunIcon /> : <MoonIcon />}
+        </button>
+      </div>
 
       <button
         type="button"
@@ -228,8 +245,9 @@ export default function NavBar() {
           </Link>
 
           <div className="app-nav-utility-actions" aria-label="Application controls">
-            <button type="button" className="app-icon-btn" title="Notifications (coming soon)" aria-label="Notifications (coming soon)" disabled>
+            <button type="button" className="app-icon-btn app-bell-btn" title="Notifications" aria-label="Notifications">
               <BellIcon />
+              <span className="app-bell-badge">9+</span>
             </button>
             <button
               type="button"
@@ -259,16 +277,41 @@ export default function NavBar() {
         </div>
       </div>
     </header>
-    <nav className="app-mobile-section-nav" aria-label="Primary navigation">
-      <span className="app-mobile-current">{activeLink?.label ?? 'Consult Scribe'}</span>
-      <div className="app-mobile-section-links">
-        {LINKS.map(({ to, label, end, Icon }) => (
-          <NavLink key={to} to={to} end={end}>
-            <Icon />
-            <span>{label}</span>
-          </NavLink>
-        ))}
-      </div>
+
+    {/* Mobile Bottom Navigation Bar (realigning exactly as requested in drawing) */}
+    <nav className="app-mobile-bottom-bar" aria-label="Mobile navigation bar">
+      <NavLink to="/" end className="mobile-bottom-item" title="Home">
+        <HomeIcon />
+        <span>Home</span>
+      </NavLink>
+
+      <NavLink to="/notes" className="mobile-bottom-item" title="Report">
+        <ReportIcon />
+        <span>Report</span>
+      </NavLink>
+
+      <NavLink to="/scribe" className="mobile-bottom-item mobile-mic-fab" title="Start Consultation / Scribe">
+        <div className="mobile-mic-circle">
+          <ScribeIcon />
+        </div>
+      </NavLink>
+
+      <NavLink to="/patients" className="mobile-bottom-item" title="Patients">
+        <div className="mobile-item-icon-wrap">
+          <PatientsIcon />
+          <span className="mobile-badge-dot" />
+        </div>
+        <span>Patient</span>
+      </NavLink>
+
+      <NavLink to="/settings" className="mobile-bottom-item" title="Settings">
+        {avatar ? (
+          <img src={avatar} alt="" className="mobile-avatar-icon" />
+        ) : (
+          <SettingsIcon />
+        )}
+        <span>Settings</span>
+      </NavLink>
     </nav>
     </>
   );
