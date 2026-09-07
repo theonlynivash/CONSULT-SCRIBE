@@ -42,6 +42,11 @@ function dateKey(iso: string) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
+function todayKey() {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+}
+
 export default function Dashboard() {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -61,14 +66,9 @@ export default function Dashboard() {
   }, []);
 
   const markedDates = useMemo(() => new Set([...active, ...notes].map((c) => dateKey(c.startedAt))), [active, notes]);
-  const [selectedDate, setSelectedDate] = useState<string>('');
-
-  useEffect(() => {
-    if (markedDates.size > 0 && !selectedDate) {
-      const sorted = Array.from(markedDates).sort().reverse();
-      setSelectedDate(sorted[0]);
-    }
-  }, [markedDates, selectedDate]);
+  // Always begin on the real current day. A past consultation is shown only
+  // when the doctor deliberately selects its green-marked calendar date.
+  const [selectedDate, setSelectedDate] = useState<string>(todayKey);
 
   const selectedConsultations = useMemo(() => {
     if (!selectedDate) return notes;

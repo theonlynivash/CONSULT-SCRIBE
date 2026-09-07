@@ -314,14 +314,49 @@ button:active:not(:disabled),
   font-weight: 700;
 }
 
-.mini-calendar-cell.marked:not(.today)::after {
+.mini-calendar-cell.marked::after {
   content: '';
   position: absolute;
   bottom: 2px;
-  width: 4px;
-  height: 4px;
+  width: 5px;
+  height: 5px;
   border-radius: 50%;
-  background: var(--accent-text);
+  background: #20a965;
+  box-shadow: 0 0 0 2px rgba(32, 169, 101, 0.14);
+}
+
+.mini-calendar-cell.is-selected {
+  outline: 2px solid rgba(32, 169, 101, 0.72);
+  outline-offset: -2px;
+  font-weight: 800;
+}
+
+.home {
+  position: relative;
+  isolation: isolate;
+}
+
+.home::before {
+  content: '';
+  position: fixed;
+  z-index: -1;
+  inset: -20vmax;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 15% 24%, rgba(42, 178, 116, 0.12), transparent 24%),
+    radial-gradient(circle at 82% 20%, rgba(255, 196, 82, 0.18), transparent 26%),
+    radial-gradient(circle at 54% 78%, rgba(236, 126, 95, 0.12), transparent 27%);
+  filter: blur(22px);
+  animation: home-ambient-drift 18s ease-in-out infinite alternate;
+}
+
+@keyframes home-ambient-drift {
+  from { transform: translate3d(-2%, -1%, 0) scale(1); }
+  to { transform: translate3d(2%, 1%, 0) scale(1.05); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .home::before { animation: none; }
 }
 
 .home-hero {
