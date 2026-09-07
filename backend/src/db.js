@@ -40,8 +40,12 @@ async function createSchema(sql) {
 		sex text,
 		email text,
 		history_notes text NOT NULL DEFAULT '',
+		owner_user_id text REFERENCES users(id) ON DELETE SET NULL,
 		created_at timestamptz NOT NULL
 	)`;
+	// CREATE TABLE does not update an existing deployment, so keep this
+	// migration safe to run on every startup.
+	await sql`ALTER TABLE patients ADD COLUMN IF NOT EXISTS owner_user_id text REFERENCES users(id) ON DELETE SET NULL`;
 	await sql`CREATE TABLE IF NOT EXISTS consultations (
 		id text PRIMARY KEY,
 		patient_id text NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
@@ -84,7 +88,8 @@ async function createNeonDb() {
 			}));
 			data.patients = patients.map((row) => ({
 				id: row.id, name: row.name, age: row.age, sex: row.sex, email: row.email,
-				historyNotes: row.history_notes, createdAt: asIso(row.created_at),
+				historyNotes: row.history_notes, ownerUserId: row.owner_user_id,
+				createdAt: asIso(row.created_at),
 			}));
 			data.consultations = consultations.map((row) => ({
 				id: row.id, patientId: row.patient_id, doctorName: row.doctor_name,
@@ -102,8 +107,8 @@ async function createNeonDb() {
 					VALUES (${user.id}, ${user.name}, ${user.email}, ${user.passwordHash || null}, ${user.googleId || null}, ${user.avatar || null}, ${user.specialty || null}, ${user.workplaceType || null}, ${user.workplaceName || null}, ${user.workplaceAddress || null}, ${user.workplacePhone || null}, ${user.workplaceEmail || null}, ${user.workplaceLogo || null}, ${user.resetOtpHash || null}, ${user.resetOtpExpiresAt || null}, ${user.createdAt || new Date().toISOString()})`;
 			}
 			for (const patient of data.patients) {
-				await sql`INSERT INTO patients (id, name, age, sex, email, history_notes, created_at)
-					VALUES (${patient.id}, ${patient.name}, ${patient.age}, ${patient.sex || null}, ${patient.email || null}, ${patient.historyNotes || ''}, ${patient.createdAt || new Date().toISOString()})`;
+				await sql`INSERT INTO patients (id, name, age, sex, email, history_notes, owner_user_id, created_at)
+					VALUES (${patient.id}, ${patient.name}, ${patient.age}, ${patient.sex || null}, ${patient.email || null}, ${patient.historyNotes || ''}, ${patient.ownerUserId || null}, ${patient.createdAt || new Date().toISOString()})`;
 			}
 			for (const consultation of data.consultations) {
 				await sql`INSERT INTO consultations (id, patient_id, doctor_name, status, started_at, ended_at, transcript, vitals, ai_draft, final_report, feedback)
