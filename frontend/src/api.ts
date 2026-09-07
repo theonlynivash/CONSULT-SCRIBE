@@ -37,18 +37,31 @@ async function request<T>(
   options?: RequestInit
 ): Promise<T> {
   const token = getToken();
+  const controller = new AbortController();
+  const timeout = window.setTimeout(() => controller.abort(), 20_000);
+  let res: Response;
 
-  const res = await fetch(`${BASE}${path}`, {
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token
-        ? {
-            Authorization: `Bearer ${token}`,
-          }
-        : {}),
-    },
-    ...options,
-  });
+  try {
+    res = await fetch(`${BASE}${path}`, {
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token
+          ? {
+              Authorization: `Bearer ${token}`,
+            }
+          : {}),
+      },
+      ...options,
+      signal: controller.signal,
+    });
+  } catch (err) {
+    if (err instanceof DOMException && err.name === 'AbortError') {
+      throw new ApiError('The server took too long to respond. Please try again.');
+    }
+    throw err;
+  } finally {
+    window.clearTimeout(timeout);
+  }
 
   if (res.status === 401) {
     clearToken();
