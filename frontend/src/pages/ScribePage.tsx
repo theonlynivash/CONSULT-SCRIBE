@@ -374,8 +374,8 @@ export default function ScribePage() {
               {filteredRows.map(({ patient, status, consultationId, lastVisitAt, reason }) => {
                 const colors = avatarStyle(patient.id);
                 return (
-                  <tr key={patient.id}>
-                    <td>
+                  <tr key={patient.id} className="scribe-table-row">
+                    <td className="scribe-cell-patient">
                       <div className="scribe-table-patient">
                         <span className="scribe-row-avatar" style={{ background: colors.bg, color: colors.ink }}>
                           {initials(patient.name)}
@@ -394,7 +394,7 @@ export default function ScribePage() {
                       </div>
                     </td>
 
-                    <td className="scribe-row-visit">
+                    <td className="scribe-cell-visit">
                       {lastVisitAt ? (
                         <>
                           <span className="scribe-row-visit-label">Last visit: {daysAgoLabel(lastVisitAt)}</span>
@@ -409,14 +409,14 @@ export default function ScribePage() {
                       )}
                     </td>
 
-                    <td>
+                    <td className="scribe-cell-status">
                       {status === 'active' && <span className="scribe-status-badge active">● In consultation</span>}
                       {status === 'review' && <span className="scribe-status-badge review">📝 Report pending</span>}
                       {status === 'completed' && <span className="scribe-status-badge completed">✓ Completed</span>}
                       {status === 'waiting' && <span className="scribe-status-badge waiting">⏱ Waiting</span>}
                     </td>
 
-                    <td>
+                    <td className="scribe-cell-actions">
                       <div className="scribe-table-actions">
                         {status === 'active' && (
                           <button

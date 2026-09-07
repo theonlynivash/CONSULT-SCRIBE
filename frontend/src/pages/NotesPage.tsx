@@ -82,6 +82,15 @@ function ThumbIcon({ down }: { down?: boolean }) {
   );
 }
 
+function DocIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M7 3h7l4 4v14a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z" />
+      <path d="M9 12h6M9 16h6M9 8h2" />
+    </svg>
+  );
+}
+
 const CHIPS: { key: string; label: string }[] = [
   { key: 'more-detailed', label: 'More detailed' },
   { key: 'less-detailed', label: 'Less detailed' },
@@ -141,11 +150,15 @@ export default function NotesPage() {
   const [view, setView] = useState<'note' | 'transcript'>('note');
   const [noteType, setNoteType] = useState(NOTE_TYPES[0]);
   const [customInstruction, setCustomInstruction] = useState('');
+  const [mobileTab, setMobileTab] = useState<'detail' | 'list' | 'actions'>('detail');
 
   async function refresh(selectFirst = false) {
     const list = await api.listNotes();
     setNotes(list);
-    if (selectFirst && list.length) setSelectedId(list[0].id);
+    if (selectFirst && list.length) {
+      setSelectedId(list[0].id);
+      setMobileTab('detail');
+    }
   }
 
   useEffect(() => {
@@ -156,7 +169,10 @@ export default function NotesPage() {
   // a specific note via router state — select it once its data has loaded.
   useEffect(() => {
     const wantId = (location.state as { selectId?: string } | null)?.selectId;
-    if (wantId && notes.some((n) => n.id === wantId)) setSelectedId(wantId);
+    if (wantId && notes.some((n) => n.id === wantId)) {
+      setSelectedId(wantId);
+      setMobileTab('detail');
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [notes]);
 
@@ -251,48 +267,117 @@ export default function NotesPage() {
   }
 
   return (
-    <div className="notes-workspace">
-      <aside className="notes-list">
-        <div className="notes-list-header">
-          <h2>Report</h2>
-          <Link to="/scribe" className="take-notes-btn">
-            <PlusIcon />
-            Take Notes
-          </Link>
-        </div>
-        <button type="button" className="template-settings-row" title="Coming soon">
-          <GearIcon />
-          Note Template Settings
+    <div className="notes-page-container">
+      <div className="notes-mobile-nav" role="tablist" aria-label="Mobile report views">
+        <button
+          type="button"
+          className={`notes-mobile-tab-btn ${mobileTab === 'detail' ? 'active' : ''}`}
+          onClick={() => setMobileTab('detail')}
+          disabled={!selected}
+        >
+          <DocIcon /> Report
         </button>
+        <button
+          type="button"
+          className={`notes-mobile-tab-btn ${mobileTab === 'list' ? 'active' : ''}`}
+          onClick={() => setMobileTab('list')}
+        >
+          All Reports ({notes.length})
+        </button>
+        <button
+          type="button"
+          className={`notes-mobile-tab-btn ${mobileTab === 'actions' ? 'active' : ''}`}
+          onClick={() => setMobileTab('actions')}
+          disabled={!selected}
+        >
+          <GearIcon /> Actions
+        </button>
+      </div>
 
-        {Object.entries(grouped).map(([group, items]) => (
-          <div key={group}>
-            <div className="date-group-label">{group}</div>
-            {items.map((n) => (
-              <div key={n.id} className={`note-row ${n.id === selectedId ? 'active' : ''}`}>
-                <button type="button" className="note-row-main" onClick={() => setSelectedId(n.id)}>
-                  <span className="note-row-title">{noteTitle(n)}</span>
-                  <span className="note-row-meta">
-                    {new Date(n.startedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    {durationLabel(n) ? ` · ${durationLabel(n)}` : ''}
-                  </span>
-                  <span className="note-row-expiry">{expiryLabel(n)}</span>
-                </button>
-                <button type="button" className="note-row-delete" title="Delete note" onClick={() => handleDelete(n.id)}>
-                  <TrashIcon />
-                </button>
-              </div>
-            ))}
+      <div className="notes-workspace" data-mobile-tab={mobileTab}>
+        <aside className="notes-list">
+          <div className="notes-list-header">
+            <h2>Report</h2>
+            <Link to="/scribe" className="take-notes-btn">
+              <PlusIcon />
+              Take Notes
+            </Link>
           </div>
-        ))}
-        {!notes.length && <p className="empty-hint">No notes yet — end a consultation to generate one.</p>}
-      </aside>
+          <button type="button" className="template-settings-row" title="Coming soon">
+            <GearIcon />
+            Note Template Settings
+          </button>
 
-      <section className="notes-detail">
-        {!selected && <p className="empty-hint">Select a note from the list.</p>}
-        {selected && draft && (
-          <>
-            <div className="notes-detail-header">
+          {Object.entries(grouped).map(([group, items]) => (
+            <div key={group}>
+              <div className="date-group-label">{group}</div>
+              {items.map((n) => (
+                <div key={n.id} className={`note-row ${n.id === selectedId ? 'active' : ''}`}>
+                  <button
+                    type="button"
+                    className="note-row-main"
+                    onClick={() => {
+                      setSelectedId(n.id);
+                      setMobileTab('detail');
+                    }}
+                  >
+                    <span className="note-row-title">{noteTitle(n)}</span>
+                    <span className="note-row-meta">
+                      {new Date(n.startedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      {durationLabel(n) ? ` · ${durationLabel(n)}` : ''}
+                    </span>
+                    <span className="note-row-expiry">{expiryLabel(n)}</span>
+                  </button>
+                  <button type="button" className="note-row-delete" title="Delete note" onClick={() => handleDelete(n.id)}>
+                    <TrashIcon />
+                  </button>
+                </div>
+              ))}
+            </div>
+          ))}
+          {!notes.length && <p className="empty-hint">No notes yet — end a consultation to generate one.</p>}
+        </aside>
+
+        <section className="notes-detail">
+          {!selected && (
+            <div className="notes-empty-state">
+              <p className="empty-hint">Select a note from the list.</p>
+              <button type="button" className="home-cta-primary" onClick={() => setMobileTab('list')}>
+                View all reports ({notes.length})
+              </button>
+            </div>
+          )}
+          {selected && draft && (
+            <>
+              <div className="notes-mobile-detail-bar">
+                <button
+                  type="button"
+                  className="notes-mobile-back-btn"
+                  onClick={() => setMobileTab('list')}
+                >
+                  ← All reports
+                </button>
+                <div className="notes-mobile-quick-actions">
+                  <button
+                    type="button"
+                    className="notes-mobile-quick-btn"
+                    onClick={handleCopy}
+                    title="Copy note"
+                  >
+                    <CopyIcon /> {copied ? 'Copied' : 'Copy'}
+                  </button>
+                  <button
+                    type="button"
+                    className="notes-mobile-quick-btn"
+                    onClick={() => setMobileTab('actions')}
+                    title="Note Actions"
+                  >
+                    <GearIcon /> Actions
+                  </button>
+                </div>
+              </div>
+
+              <div className="notes-detail-header">
               <h2>{noteTitle(selected)}</h2>
               <p className="consult-sub">
                 {new Date(selected.startedAt).toLocaleString()}
@@ -421,6 +506,15 @@ export default function NotesPage() {
       </section>
 
       <aside className="notes-actions">
+        <div className="notes-mobile-actions-bar">
+          <button
+            type="button"
+            className="notes-mobile-back-btn"
+            onClick={() => setMobileTab('detail')}
+          >
+            ← Back to report
+          </button>
+        </div>
         <div className="notes-actions-header">
           <h3>Actions</h3>
           <InfoIcon />
@@ -502,6 +596,7 @@ export default function NotesPage() {
           </>
         )}
       </aside>
+    </div>
     </div>
   );
 }
