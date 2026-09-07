@@ -49,6 +49,7 @@ async function createSchema(sql) {
 	await sql`CREATE TABLE IF NOT EXISTS consultations (
 		id text PRIMARY KEY,
 		patient_id text NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
+		owner_user_id text REFERENCES users(id) ON DELETE SET NULL,
 		doctor_name text NOT NULL,
 		status text NOT NULL,
 		started_at timestamptz NOT NULL,
@@ -59,6 +60,7 @@ async function createSchema(sql) {
 		final_report jsonb,
 		feedback jsonb NOT NULL DEFAULT '[]'::jsonb
 	)`;
+	await sql`ALTER TABLE consultations ADD COLUMN IF NOT EXISTS owner_user_id text REFERENCES users(id) ON DELETE SET NULL`;
 }
 
 function asIso(value) {
@@ -93,6 +95,7 @@ async function createNeonDb() {
 			}));
 			data.consultations = consultations.map((row) => ({
 				id: row.id, patientId: row.patient_id, doctorName: row.doctor_name,
+				ownerUserId: row.owner_user_id,
 				status: row.status, startedAt: asIso(row.started_at), endedAt: asIso(row.ended_at),
 				transcript: row.transcript || [], vitals: row.vitals || [], aiDraft: row.ai_draft,
 				finalReport: row.final_report, feedback: row.feedback || [],
@@ -111,8 +114,8 @@ async function createNeonDb() {
 					VALUES (${patient.id}, ${patient.name}, ${patient.age}, ${patient.sex || null}, ${patient.email || null}, ${patient.historyNotes || ''}, ${patient.ownerUserId || null}, ${patient.createdAt || new Date().toISOString()})`;
 			}
 			for (const consultation of data.consultations) {
-				await sql`INSERT INTO consultations (id, patient_id, doctor_name, status, started_at, ended_at, transcript, vitals, ai_draft, final_report, feedback)
-					VALUES (${consultation.id}, ${consultation.patientId}, ${consultation.doctorName}, ${consultation.status}, ${consultation.startedAt}, ${consultation.endedAt}, ${JSON.stringify(consultation.transcript || [])}::jsonb, ${JSON.stringify(consultation.vitals || [])}::jsonb, ${consultation.aiDraft ? JSON.stringify(consultation.aiDraft) : null}::jsonb, ${consultation.finalReport ? JSON.stringify(consultation.finalReport) : null}::jsonb, ${JSON.stringify(consultation.feedback || [])}::jsonb)`;
+				await sql`INSERT INTO consultations (id, patient_id, owner_user_id, doctor_name, status, started_at, ended_at, transcript, vitals, ai_draft, final_report, feedback)
+					VALUES (${consultation.id}, ${consultation.patientId}, ${consultation.ownerUserId || null}, ${consultation.doctorName}, ${consultation.status}, ${consultation.startedAt}, ${consultation.endedAt}, ${JSON.stringify(consultation.transcript || [])}::jsonb, ${JSON.stringify(consultation.vitals || [])}::jsonb, ${consultation.aiDraft ? JSON.stringify(consultation.aiDraft) : null}::jsonb, ${consultation.finalReport ? JSON.stringify(consultation.finalReport) : null}::jsonb, ${JSON.stringify(consultation.feedback || [])}::jsonb)`;
 			}
 		},
 	};

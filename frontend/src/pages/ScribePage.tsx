@@ -167,11 +167,17 @@ export default function ScribePage() {
   const [addBusy, setAddBusy] = useState(false);
 
   async function refresh() {
-    const [p, n, a] = await Promise.all([api.listPatients(), api.listNotes(), api.listActiveConsultations()]);
-    setPatients(p);
-    setNotes(n);
-    setActive(a);
-    setLoaded(true);
+    try {
+      const [p, n, a] = await Promise.all([api.listPatients(), api.listNotes(), api.listActiveConsultations()]);
+      setPatients(p);
+      setNotes(n);
+      setActive(a);
+    } catch (err) {
+      setError((err as Error).message || 'Unable to load consultation data. Please try again.');
+    } finally {
+      // A temporary API failure must not leave the page on an endless loader.
+      setLoaded(true);
+    }
   }
 
   useEffect(() => {
