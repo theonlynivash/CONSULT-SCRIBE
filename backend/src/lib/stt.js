@@ -1,224 +1,135 @@
-import FormData from 'form-data';
-
 const XAI_STT_URL = 'https://api.x.ai/v1/stt';
 
-
-
-
-
-
-
-const DEFAULT_MODEL =
-  process.env.XAI_STT_MODEL || 'grok-2-audio';
-
-
-
+const MEDICAL_KEYTERMS = [
+  'SpO2',
+  'HbA1c',
+  'ECG',
+  'BP',
+  'blood pressure',
+  'heart rate',
+  'pulse oximeter',
+  'CBC',
+  'creatinine',
+  'hemoglobin',
+  'diabetes',
+  'hypertension',
+  'hypotension',
+  'paracetamol',
+  'amoxicillin',
+];
 
 export function sttConfigured() {
-  return Boolean(
-    process.env.XAI_API_KEY
-  );
+  return Boolean(process.env.XAI_API_KEY);
 }
 
+export async function transcribeAudio({ buffer, mimeType, language }) {
+  if (!sttConfigured()) {
+    const error = new Error(
+      'Grok Speech-to-Text is not configured. Add XAI_API_KEY to backend/.env.'
+    );
+    error.code = 'STT_NOT_CONFIGURED';
+    throw error;
+  }
 
+  if (!buffer || !buffer.length) {
+    const error = new Error('The uploaded audio segment is empty.');
+    error.code = 'EMPTY_AUDIO';
+    throw error;
+  }
 
+  const form = new FormData();
 
+  if (language) {
+    form.append('format', 'true');
+    form.append('language', language);
+  }
 
-function extensionForMimeType(
-  mimeType = ''
-) {
-  const type =
-    mimeType
-      .split(';')[0]
-      .trim()
-      .toLowerCase();
+  for (const keyterm of MEDICAL_KEYTERMS) {
+    form.append('keyterm', keyterm);
+  }
 
-  if (type === 'audio/webm') {
-    return 'webm';
+  const extension = extensionForMime(mimeType);
+  const blob = new Blob([buffer], {
+    type: mimeType || 'audio/webm',
+  });
+
+  form.append(
+    'file',
+    blob,
+    `consultation.${extension}`
+  );
+
+  let response;
+
+  try {
+    response = await fetch(XAI_STT_URL, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${process.env.XAI_API_KEY}`,
+      },
+      body: form,
+    });
+  } catch (err) {
+    const error = new Error(
+      `Could not reach Grok Speech-to-Text: ${
+        err?.message || 'network error'
+      }`
+    );
+    error.code = 'STT_NETWORK_ERROR';
+    throw error;
+  }
+
+  const payload = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    const providerMessage =
+      payload?.error?.message ||
+      payload?.error ||
+      `xAI Speech-to-Text returned HTTP ${response.status}`;
+
+    const error = new Error(String(providerMessage));
+    error.code = 'STT_PROVIDER_ERROR';
+    error.status = response.status;
+
+    throw error;
+  }
+
+  return {
+    text: String(payload.text || '').trim(),
+    language: payload.language || undefined,
+    duration:
+      typeof payload.duration === 'number'
+        ? payload.duration
+        : undefined,
+  };
+}
+
+function extensionForMime(mimeType = '') {
+  const type = mimeType.toLowerCase().split(';')[0];
+
+  if (type === 'audio/mp4' || type === 'audio/m4a') {
+    return 'm4a';
   }
 
   if (type === 'audio/ogg') {
     return 'ogg';
   }
 
-  if (type === 'audio/wav' ||
-      type === 'audio/x-wav') {
-    return 'wav';
-  }
-
-  if (type === 'audio/mpeg' ||
-      type === 'audio/mp3') {
+  if (type === 'audio/mpeg' || type === 'audio/mp3') {
     return 'mp3';
   }
 
-  if (type === 'audio/mp4' ||
-      type === 'audio/m4a' ||
-      type === 'audio/x-m4a') {
-    return 'm4a';
+  if (type === 'audio/wav' || type === 'audio/x-wav') {
+    return 'wav';
+  }
+
+  if (type === 'audio/aac') {
+    return 'aac';
+  }
+
+  if (type === 'audio/webm') {
+    return 'webm';
   }
 
   return 'webm';
-}
-
-
-
-
-
-
-
-
-
-export async function transcribeAudio({
-  buffer,
-  mimeType = 'audio/webm',
-  language,
-}) {
-  if (!sttConfigured()) {
-    const error = new Error(
-      'XAI_API_KEY is not configured.'
-    );
-
-    error.code =
-      'STT_NOT_CONFIGURED';
-
-    throw error;
-  }
-
-  if (
-    !Buffer.isBuffer(buffer) ||
-    buffer.length === 0
-  ) {
-    const error = new Error(
-      'No audio data was supplied.'
-    );
-
-    error.code =
-      'INVALID_AUDIO';
-
-    throw error;
-  }
-
-  const extension =
-    extensionForMimeType(
-      mimeType
-    );
-
-  
-
-
-  const form =
-    new FormData();
-
-  form.append(
-    'file',
-    buffer,
-    {
-      filename:
-        `consultation.${extension}`,
-      contentType:
-        mimeType,
-    }
-  );
-
-  form.append(
-    'model',
-    DEFAULT_MODEL
-  );
-
-  
-
-
-
-  if (language) {
-    form.append(
-      'language',
-      language
-    );
-  }
-
-  const response =
-    await fetch(
-      XAI_STT_URL,
-      {
-        method: 'POST',
-
-        headers: {
-          Authorization:
-            `Bearer ${process.env.XAI_API_KEY}`,
-
-          ...form.getHeaders(),
-        },
-
-        body: form,
-      }
-    );
-
-  const rawText =
-    await response.text();
-
-  let data = null;
-
-  try {
-    data =
-      rawText
-        ? JSON.parse(rawText)
-        : null;
-  } catch {
-    data = null;
-  }
-
-  if (!response.ok) {
-    const providerMessage =
-      data?.error?.message ||
-      data?.error ||
-      rawText ||
-      `xAI STT request failed with status ${response.status}`;
-
-    const error = new Error(
-      String(providerMessage)
-    );
-
-    error.status =
-      response.status;
-
-    error.code =
-      'STT_PROVIDER_ERROR';
-
-    throw error;
-  }
-
-  
-
-
-
-  const text =
-    typeof data?.text === 'string'
-      ? data.text.trim()
-      : '';
-
-  if (!text) {
-    const error = new Error(
-      'xAI STT returned an empty transcript.'
-    );
-
-    error.code =
-      'EMPTY_TRANSCRIPT';
-
-    throw error;
-  }
-
-  return {
-    text,
-
-    
-
-
-
-
-    language:
-      data?.language || null,
-
-    duration:
-      data?.duration ?? null,
-  };
 }

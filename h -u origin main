@@ -1,0 +1,11 @@
+*   [33m7f3489f[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m)[m Merge existing GitHub history into final version
+[31m|[m[32m\[m  
+[31m|[m * [33m378ee86[m[33m ([m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m stt fallback update
+[31m|[m * [33mcc9131e[m BG FINE TUNING
+[31m|[m * [33m7c4c1b8[m ui enhance
+[31m|[m * [33mf339043[m mobile responsive
+[31m|[m * [33me9b027b[m Improve dashboard calendar and date statistics
+[31m|[m * [33m480c5de[m Prevent stuck API loading states
+[31m|[m * [33me1ccf95[m patient consultion bug
+[31m|[m * [33mccdef34[m patient creation bug
+[31m|[m * [33m9772279[m Update live demo link text in README.mdurl update
