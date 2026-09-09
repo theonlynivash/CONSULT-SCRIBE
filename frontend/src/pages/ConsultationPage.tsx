@@ -40,10 +40,15 @@ export default function ConsultationPage() {
   const [voiceLang, setVoiceLang] = useState<'ta-IN' | 'en-IN'>('ta-IN');
   const [listening, setListening] = useState(false);
   const [voiceError, setVoiceError] = useState('');
+  const [voiceMode, setVoiceMode] = useState<'chrome' | 'grok' | null>(null);
   const demoRunning = useRef(false);
   const recognitionRef = useRef<any>(null);
   const listeningRef = useRef(false);
   const consultationIdRef = useRef(consultationId);
+  const grokRecorderRef = useRef<MediaRecorder | null>(null);
+  const grokStreamRef = useRef<MediaStream | null>(null);
+  const grokTimerRef = useRef<number | null>(null);
+  const grokStoppingRef = useRef(false);
 
   useEffect(() => {
     consultationIdRef.current = consultationId;
@@ -81,19 +86,209 @@ export default function ConsultationPage() {
           /* already stopped */
         }
       }
+      grokStoppingRef.current = true;
+      cleanupGrokRecorder();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [consultationId]);
 
-  async function startListening() {
-    setVoiceError('');
-    const SpeechRecognitionCtor = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SpeechRecognitionCtor) {
-      setVoiceError('Online speech recognition is not supported in this browser. Use Chrome or Edge to enable the network-first conversation mode.');
+  function isLikelyMobileDevice() {
+    if (typeof navigator === 'undefined') return false;
+    const ua = navigator.userAgent || '';
+    const uaData = (navigator as Navigator & { userAgentData?: { mobile?: boolean } }).userAgentData;
+    return Boolean(
+      uaData?.mobile ||
+      /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Mobile/i.test(ua)
+    );
+  }
+
+  function clearGrokTimer() {
+    if (grokTimerRef.current !== null) {
+      window.clearTimeout(grokTimerRef.current);
+      grokTimerRef.current = null;
+    }
+  }
+
+  function cleanupGrokRecorder() {
+    clearGrokTimer();
+    const recorder = grokRecorderRef.current;
+    grokRecorderRef.current = null;
+    if (recorder) {
+      recorder.ondataavailable = null;
+      recorder.onerror = null;
+      recorder.onstop = null;
+      try {
+        if (recorder.state !== 'inactive') recorder.stop();
+      } catch {
+        /* already stopped */
+      }
+    }
+
+    const stream = grokStreamRef.current;
+    grokStreamRef.current = null;
+    stream?.getTracks().forEach((track) => track.stop());
+  }
+
+  async function uploadGrokSegment(blob: Blob) {
+    const id = consultationIdRef.current;
+    if (!id || !blob.size) return;
+
+    try {
+      const language = voiceLang === 'en-IN' ? 'en' : undefined;
+      const result = await api.transcribeAudio(id, blob, language);
+      const text = result.text.trim();
+
+      if (text) {
+        await api.addTranscriptLine(id, 'conversation', text);
+        await refresh();
+      }
+    } catch (err) {
+      if (listeningRef.current) {
+        setVoiceError((err as Error).message || 'Grok could not transcribe this audio segment.');
+      }
+    }
+  }
+
+  async function startGrokRecording(showFallbackMessage = false) {
+    if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === 'undefined') {
+      listeningRef.current = false;
+      setListening(false);
+      setVoiceMode(null);
+      setVoiceError('This browser cannot record microphone audio for the Grok fallback. Please use a current Chrome, Edge, Safari, or Firefox browser.');
       return;
     }
+
+    cleanupGrokRecorder();
+    grokStoppingRef.current = false;
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          channelCount: 1,
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+        },
+      });
+
+      if (!listeningRef.current) {
+        stream.getTracks().forEach((track) => track.stop());
+        return;
+      }
+
+      const preferredTypes = [
+        'audio/webm;codecs=opus',
+        'audio/webm',
+        'audio/mp4',
+        'audio/ogg;codecs=opus',
+      ];
+      const mimeType = preferredTypes.find((type) => MediaRecorder.isTypeSupported(type)) || '';
+      const recorder = mimeType
+        ? new MediaRecorder(stream, { mimeType })
+        : new MediaRecorder(stream);
+
+      grokStreamRef.current = stream;
+      grokRecorderRef.current = recorder;
+      setVoiceMode('grok');
+      setListening(true);
+      if (showFallbackMessage) setVoiceError('');
+
+      const chunks: BlobPart[] = [];
+
+      recorder.ondataavailable = (event) => {
+        if (event.data?.size) chunks.push(event.data);
+      };
+
+      recorder.onerror = () => {
+        if (!grokStoppingRef.current) {
+          listeningRef.current = false;
+          setListening(false);
+          setVoiceMode(null);
+          setVoiceError('Grok microphone recording failed. Check the browser microphone permission and try again.');
+        }
+      };
+
+      recorder.onstop = async () => {
+        clearGrokTimer();
+        const segment = new Blob(chunks, { type: recorder.mimeType || mimeType || 'audio/webm' });
+        const shouldContinue = listeningRef.current && !grokStoppingRef.current;
+
+        if (grokRecorderRef.current === recorder) {
+          grokRecorderRef.current = null;
+        }
+
+        await uploadGrokSegment(segment);
+
+        if (shouldContinue && listeningRef.current) {
+          // Start a fresh, independently decodable audio file. This avoids
+          // sending an arbitrary WebM timeslice that may not contain headers.
+          await startGrokRecording(false);
+        } else {
+          stream.getTracks().forEach((track) => track.stop());
+          if (!listeningRef.current) setListening(false);
+        }
+      };
+
+      recorder.start();
+
+      // xAI's REST STT endpoint accepts complete files. Rotate the recorder
+      // every 15 seconds so mobile gets near-live transcript updates without
+      // requiring a WebSocket/PCM audio pipeline.
+      grokTimerRef.current = window.setTimeout(() => {
+        if (grokRecorderRef.current === recorder && recorder.state !== 'inactive') {
+          try {
+            recorder.stop();
+          } catch {
+            /* already stopping */
+          }
+        }
+      }, 15_000);
+    } catch (err) {
+      listeningRef.current = false;
+      setListening(false);
+      setVoiceMode(null);
+      const message = (err as DOMException)?.name === 'NotAllowedError'
+        ? 'Microphone permission was denied. Allow microphone access in the browser settings and try again.'
+        : (err as Error).message || 'Could not start Grok microphone recording.';
+      setVoiceError(message);
+    }
+  }
+
+  async function switchToGrokFallback(message?: string) {
+    if (!listeningRef.current) return;
+
+    const rec = recognitionRef.current;
+    recognitionRef.current = null;
+    if (rec) {
+      rec.onend = null;
+      rec.onerror = null;
+      rec.onresult = null;
+      try {
+        rec.stop();
+      } catch {
+        /* already stopped */
+      }
+    }
+
+    if (message) setVoiceError(message);
+    await startGrokRecording(Boolean(message));
+  }
+
+  async function startListening() {
+    setVoiceError('');
+
+    const SpeechRecognitionCtor = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const useGrok = isLikelyMobileDevice() || !SpeechRecognitionCtor;
+
     listeningRef.current = true;
     setListening(true);
+
+    if (useGrok) {
+      await startGrokRecording(false);
+      return;
+    }
+
+    setVoiceMode('chrome');
     beginRecognition(SpeechRecognitionCtor, voiceLang);
   }
 
@@ -123,51 +318,54 @@ export default function ConsultationPage() {
         const spokenText = result[0].transcript.trim();
         const id = consultationIdRef.current;
         if (spokenText && id) {
-          api.addTranscriptLine(id, 'conversation', spokenText).then(refresh);
+          api.addTranscriptLine(id, 'conversation', spokenText).then(refresh).catch((err) => {
+            setVoiceError((err as Error).message || 'Could not save the transcript.');
+          });
         }
       }
     };
 
     recognition.onerror = (event: any) => {
       const err = String(event.error || '');
-      // Chrome raises these during normal continuous capture — keep listening.
+
       if (err === 'no-speech' || err === 'aborted') return;
+
       if (err === 'not-allowed' || err === 'service-not-allowed') {
         listeningRef.current = false;
         setListening(false);
+        setVoiceMode(null);
         setVoiceError('Microphone permission was denied. Allow the mic in the browser address bar and try again.');
         return;
       }
-      if (err === 'audio-capture') {
-        listeningRef.current = false;
-        setListening(false);
-        setVoiceError('Could not access the microphone. Check that it is connected and not in use by another app.');
-        return;
-      }
-      if (err === 'network') {
-        listeningRef.current = false;
-        setListening(false);
-        setVoiceError('Chrome speech recognition needs an internet connection. Check the connection and try again.');
-        return;
-      }
+
       if (err === 'language-not-supported' && lang.startsWith('ta')) {
-        setVoiceError('Tamil speech recognition is not available on this device — switched to English.');
+        setVoiceError('Tamil browser speech recognition is not available on this laptop — switched to English.');
         beginRecognition(SpeechRecognitionCtor, 'en-IN');
         return;
       }
-      listeningRef.current = false;
-      setListening(false);
-      setVoiceError(`Voice recognition error: ${err}`);
+
+      if (err === 'network') {
+        void switchToGrokFallback('Chrome speech recognition lost its network connection. Switched to Grok STT fallback.');
+        return;
+      }
+
+      if (err === 'audio-capture') {
+        void switchToGrokFallback('Chrome could not keep the microphone capture alive. Switched to Grok STT fallback.');
+        return;
+      }
+
+      void switchToGrokFallback('Chrome speech recognition stopped unexpectedly. Switched to Grok STT fallback.');
     };
 
     recognition.onend = () => {
       if (!listeningRef.current) {
         setListening(false);
+        setVoiceMode(null);
         return;
       }
-      // Chrome ends the session after a pause even with continuous: true.
+
       window.setTimeout(() => {
-        if (!listeningRef.current) return;
+        if (!listeningRef.current || recognitionRef.current !== recognition) return;
         try {
           recognition.start();
         } catch {
@@ -180,22 +378,41 @@ export default function ConsultationPage() {
     try {
       recognition.start();
     } catch (err) {
-      listeningRef.current = false;
-      setListening(false);
-      setVoiceError((err as Error).message || 'Could not start voice recognition.');
+      void switchToGrokFallback((err as Error).message || 'Could not start Chrome speech recognition. Switched to Grok STT fallback.');
     }
   }
 
   function stopListening() {
     listeningRef.current = false;
     setListening(false);
+    setVoiceMode(null);
+    grokStoppingRef.current = true;
+    clearGrokTimer();
+
     const rec = recognitionRef.current;
-    if (!rec) return;
-    rec.onend = null;
-    try {
-      rec.stop();
-    } catch {
-      /* already stopped */
+    recognitionRef.current = null;
+    if (rec) {
+      rec.onend = null;
+      rec.onerror = null;
+      rec.onresult = null;
+      try {
+        rec.stop();
+      } catch {
+        /* already stopped */
+      }
+    }
+
+    const grokRecorder = grokRecorderRef.current;
+    if (grokRecorder) {
+      try {
+        if (grokRecorder.state !== 'inactive') grokRecorder.stop();
+      } catch {
+        /* already stopped */
+      }
+    } else {
+      const stream = grokStreamRef.current;
+      grokStreamRef.current = null;
+      stream?.getTracks().forEach((track) => track.stop());
     }
   }
 
@@ -540,7 +757,7 @@ export default function ConsultationPage() {
             <div className="consult-header">
               <div>
                 <h2>Live consultation</h2>
-                <p className={`consult-sub ${listening ? 'live' : ''}`}>{listening ? 'Listening…' : 'Not recording'}</p>
+                <p className={`consult-sub ${listening ? 'live' : ''}`}>{listening ? (voiceMode === 'grok' ? 'Listening with Grok STT…' : 'Listening…') : 'Not recording'}</p>
               </div>
               <button type="button" className="ghost" onClick={runDemoMode}>
                 Demo mode
@@ -577,7 +794,7 @@ export default function ConsultationPage() {
             </div>
             {voiceError && <p className="error-text">{voiceError}</p>}
             <p className="hint-text">
-              The microphone captures the full consultation as one stream. The complete conversation is used to prepare the clinical summary.
+              Laptop: Chrome speech recognition is used normally. Mobile or unsupported browsers use Grok STT automatically, and Grok also takes over if Chrome speech recognition fails.
             </p>
           </section>
 

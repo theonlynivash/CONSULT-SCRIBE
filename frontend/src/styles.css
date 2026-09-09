@@ -160,24 +160,29 @@ body::before {
   transition: transform 0.26s cubic-bezier(0.2, 0.9, 0.3, 1.25), box-shadow 0.26s ease, border-color 0.2s ease, background 0.2s ease;
 }
 
-.panel:hover,
-.stat-card:hover,
-.home-calendar-card:hover,
-.patient-card:hover,
-.notes-card:hover,
-.settings-card:hover,
-.scribe-card:hover {
-  transform: translateY(-3px);
-  box-shadow: var(--ios-glass-shadow-hover), var(--ios-glass-shine);
-}
+/* Hover/active lift is intentionally limited to real hover devices.
+   Touch browsers can keep :active alive after a tap, which causes cards
+   to remain visually raised and overlap neighboring sections. */
+@media (hover: hover) and (pointer: fine) {
+  .panel:hover,
+  .stat-card:hover,
+  .home-calendar-card:hover,
+  .patient-card:hover,
+  .notes-card:hover,
+  .settings-card:hover,
+  .scribe-card:hover {
+    transform: translateY(-3px);
+    box-shadow: var(--ios-glass-shadow-hover), var(--ios-glass-shine);
+  }
 
-.stat-card:active,
-.patient-card:active,
-.notes-card:active,
-.settings-card:active,
-.scribe-card:active {
-  transform: translateY(-6px) scale(1.02);
-  box-shadow: var(--ios-glass-shadow-raise), var(--ios-glass-shine);
+  .stat-card:active,
+  .patient-card:active,
+  .notes-card:active,
+  .settings-card:active,
+  .scribe-card:active {
+    transform: translateY(-6px) scale(1.02);
+    box-shadow: var(--ios-glass-shadow-raise), var(--ios-glass-shine);
+  }
 }
 
 /* Universal click / hover animation for tabs, buttons, links and interactive elements */
@@ -196,33 +201,35 @@ button:not(:disabled),
   transition: transform 0.24s cubic-bezier(0.2, 0.9, 0.3, 1.3), box-shadow 0.24s ease, background 0.2s ease, border-color 0.2s ease, opacity 0.2s ease;
 }
 
-button:hover:not(:disabled),
-.tab:hover,
-[role='tab']:hover,
-[role='button']:hover:not(:disabled),
-.home-cta-primary:hover:not(:disabled),
-.home-cta-secondary:hover,
-.app-icon-btn:hover,
-.mini-calendar-nav:hover:not(:disabled),
-.mini-calendar-cell:not(.empty):hover {
-  transform: translateY(-3px);
-  box-shadow: 0 10px 22px -2px rgba(42, 35, 19, 0.16);
-}
+@media (hover: hover) and (pointer: fine) {
+  button:hover:not(:disabled),
+  .tab:hover,
+  [role='tab']:hover,
+  [role='button']:hover:not(:disabled),
+  .home-cta-primary:hover:not(:disabled),
+  .home-cta-secondary:hover,
+  .app-icon-btn:hover,
+  .mini-calendar-nav:hover:not(:disabled),
+  .mini-calendar-cell:not(.empty):hover {
+    transform: translateY(-3px);
+    box-shadow: 0 10px 22px -2px rgba(42, 35, 19, 0.16);
+  }
 
-/* RAISE UP A BIT ON CLICK / ACTIVE STATE */
-button:active:not(:disabled),
-.tab:active,
-[role='tab']:active,
-[role='button']:active:not(:disabled),
-.app-nav-links a:active,
-.app-nav-primary:active,
-.home-cta-primary:active:not(:disabled),
-.home-cta-secondary:active,
-.app-icon-btn:active,
-.mini-calendar-nav:active:not(:disabled),
-.mini-calendar-cell:not(.empty):active {
-  transform: translateY(-7px) scale(1.03) !important;
-  box-shadow: 0 16px 32px -2px rgba(42, 35, 19, 0.24), var(--ios-glass-shine) !important;
+  /* RAISE UP A BIT ON CLICK / ACTIVE STATE */
+  button:active:not(:disabled),
+  .tab:active,
+  [role='tab']:active,
+  [role='button']:active:not(:disabled),
+  .app-nav-links a:active,
+  .app-nav-primary:active,
+  .home-cta-primary:active:not(:disabled),
+  .home-cta-secondary:active,
+  .app-icon-btn:active,
+  .mini-calendar-nav:active:not(:disabled),
+  .mini-calendar-cell:not(.empty):active {
+    transform: translateY(-7px) scale(1.03) !important;
+    box-shadow: 0 16px 32px -2px rgba(42, 35, 19, 0.24), var(--ios-glass-shine) !important;
+  }
 }
 
 .app-shell {
@@ -891,12 +898,14 @@ button:active:not(:disabled),
   background: rgba(255, 255, 255, 0.16);
 }
 
-/* CLICKED TAB RAISES UP A BIT */
-.app-nav-links a:active {
-  transform: translateY(-7px) scale(1.04) !important;
-  opacity: 1;
-  background: rgba(255, 255, 255, 0.25);
-  box-shadow: 0 14px 28px -2px rgba(42, 35, 19, 0.25), inset 0 1px 1.5px rgba(255, 255, 255, 0.8) !important;
+/* CLICKED TAB RAISES UP A BIT — desktop/mouse only */
+@media (hover: hover) and (pointer: fine) {
+  .app-nav-links a:active {
+    transform: translateY(-7px) scale(1.04) !important;
+    opacity: 1;
+    background: rgba(255, 255, 255, 0.25);
+    box-shadow: 0 14px 28px -2px rgba(42, 35, 19, 0.25), inset 0 1px 1.5px rgba(255, 255, 255, 0.8) !important;
+  }
 }
 
 .app-nav-links a.active {

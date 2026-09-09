@@ -34,22 +34,25 @@ export class ApiError extends Error {
 
 async function request<T>(
   path: string,
-  options?: RequestInit
+  options?: RequestInit,
+  timeoutMs = 20_000
 ): Promise<T> {
   const token = getToken();
   const controller = new AbortController();
-  const timeout = window.setTimeout(() => controller.abort(), 20_000);
+  const timeout = window.setTimeout(() => controller.abort(), timeoutMs);
   let res: Response;
+  const isFormData = options?.body instanceof FormData;
 
   try {
     res = await fetch(`${BASE}${path}`, {
       headers: {
-        'Content-Type': 'application/json',
+        ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
         ...(token
           ? {
               Authorization: `Bearer ${token}`,
             }
           : {}),
+        ...(options?.headers || {}),
       },
       ...options,
       signal: controller.signal,
@@ -263,6 +266,26 @@ export const api = {
       }
     ),
 
+  transcribeAudio: (
+    id: string,
+    audio: Blob,
+    language?: string
+  ) => {
+    const query = language ? `?language=${encodeURIComponent(language)}` : '';
+
+    return request<{
+      text: string;
+      language?: string;
+      duration?: number;
+    }>(`/consultations/${id}/transcribe${query}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': audio.type || 'audio/webm',
+      },
+      body: audio,
+    }, 90_000);
+  },
+
   // ==========================================
   // VITALS
   // ==========================================
@@ -422,6 +445,7 @@ export const api = {
   getStatus: () =>
     request<{
       llmConfigured: boolean;
+      sttConfigured: boolean;
       emailConfigured: boolean;
     }>('/status'),
 };

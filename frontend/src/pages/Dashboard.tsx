@@ -52,7 +52,7 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const [notes, setNotes] = useState<Note[]>([]);
   const [active, setActive] = useState<Note[]>([]);
-  const [status, setStatus] = useState<{ llmConfigured: boolean; emailConfigured: boolean } | null>(null);
+  const [status, setStatus] = useState<{ llmConfigured: boolean; sttConfigured: boolean; emailConfigured: boolean } | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [showLetterheadNotice, setShowLetterheadNotice] = useState(() => sessionStorage.getItem('consult-scribe-letterhead-notice-dismissed') !== 'true');
 
@@ -92,7 +92,10 @@ export default function Dashboard() {
     return dateObj.toLocaleDateString([], { month: 'long', day: 'numeric' });
   }, [selectedDate]);
 
-  const micAvailable = typeof window !== 'undefined' && !!(window.SpeechRecognition || window.webkitSpeechRecognition);
+  const micAvailable = typeof window !== 'undefined' && (
+    !!(window.SpeechRecognition || window.webkitSpeechRecognition) ||
+    !!navigator.mediaDevices?.getUserMedia && typeof MediaRecorder !== 'undefined'
+  );
   const letterheadComplete = useMemo(() => Boolean(user?.workplaceName?.trim() && user?.workplaceAddress?.trim()), [user?.workplaceName, user?.workplaceAddress]);
 
   function dismissLetterheadNotice() {
@@ -198,7 +201,11 @@ export default function Dashboard() {
                 </li>
                 <li>
                   <span className={`home-status-dot${micAvailable ? ' on' : ''}`} />
-                  {micAvailable ? 'Voice capture available' : 'Voice capture not supported in this browser'}
+                  {micAvailable ? 'Voice capture available (Chrome SST + Grok mobile fallback)' : 'Voice capture not supported in this browser'}
+                </li>
+                <li>
+                  <span className={`home-status-dot${status?.sttConfigured ? ' on' : ''}`} />
+                  {status?.sttConfigured ? 'Grok STT fallback configured' : 'Grok STT fallback not configured'}
                 </li>
                 <li>
                   <span className={`home-status-dot${status?.emailConfigured ? ' on' : ''}`} />

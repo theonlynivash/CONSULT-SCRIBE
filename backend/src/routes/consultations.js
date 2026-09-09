@@ -1,8 +1,9 @@
-import { Router } from 'express';
+import express, { Router } from 'express';
 import { randomUUID } from 'node:crypto';
 import { db } from '../db.js';
 import { analyzeConsultation, refineDraft } from '../lib/analyze.js';
 import { sendReportEmail } from '../lib/mailer.js';
+import { transcribeAudio, sttConfigured } from '../lib/stt.js';
 
 export const consultationsRouter = Router();
 
@@ -303,6 +304,85 @@ consultationsRouter.post(
     await db.write();
 
     res.status(201).json(c);
+  }
+);
+
+/*
+ * ============================================================
+ * GROK SPEECH-TO-TEXT FALLBACK
+ * ============================================================
+ *
+ * Used by mobile/unsupported browsers and as a fallback when browser
+ * SpeechRecognition stops working. The xAI API key never reaches the client.
+ */
+consultationsRouter.post(
+  '/:id/transcribe',
+  express.raw({
+    type: ['audio/*', 'application/octet-stream'],
+    limit: '50mb',
+  }),
+  async (req, res) => {
+    if (!sttConfigured()) {
+      return res.status(503).json({
+        error: 'Grok Speech-to-Text is not configured. Add XAI_API_KEY to the backend environment.',
+        code: 'STT_NOT_CONFIGURED',
+      });
+    }
+
+    await db.read();
+
+    const c = findOwnedConsultation(
+      req.params.id,
+      req.user.id
+    );
+
+    if (!c) {
+      return res.status(404).json({
+        error: 'not found',
+      });
+    }
+
+    if (c.status !== 'active') {
+      return res.status(400).json({
+        error: 'transcription is only available during an active consultation',
+      });
+    }
+
+    const audioBuffer = Buffer.isBuffer(req.body) ? req.body : null;
+
+    if (!audioBuffer?.length) {
+      return res.status(400).json({
+        error: 'audio file is required',
+      });
+    }
+
+    const requestedLanguage = String(req.query?.language || '').trim().toLowerCase();
+    const language = requestedLanguage === 'en-in' || requestedLanguage === 'en'
+      ? 'en'
+      : undefined;
+
+    try {
+      const result = await transcribeAudio({
+        buffer: audioBuffer,
+        mimeType: req.headers['content-type'] || 'audio/webm',
+        language,
+      });
+
+      res.json(result);
+    } catch (err) {
+      console.error('Grok Speech-to-Text failed:', err.message);
+
+      const status = err.status === 401 || err.status === 403
+        ? 502
+        : err.status === 429
+          ? 429
+          : 502;
+
+      return res.status(status).json({
+        error: err.message || 'Grok Speech-to-Text failed.',
+        code: err.code || 'STT_PROVIDER_ERROR',
+      });
+    }
   }
 );
 
