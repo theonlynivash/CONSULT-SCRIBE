@@ -9,6 +9,7 @@ import type {
 } from './types';
 
 const BASE = `${(import.meta.env.VITE_API_URL || '').replace(/\/$/, '')}/api`;
+
 const TOKEN_KEY = 'consult-scribe-token';
 
 export function getToken() {
@@ -38,15 +39,28 @@ async function request<T>(
   timeoutMs = 20_000
 ): Promise<T> {
   const token = getToken();
+
   const controller = new AbortController();
-  const timeout = window.setTimeout(() => controller.abort(), timeoutMs);
+
+  const timeout = window.setTimeout(() => {
+    controller.abort();
+  }, timeoutMs);
+
   let res: Response;
-  const isFormData = options?.body instanceof FormData;
+
+  const isFormData =
+    typeof FormData !== 'undefined' &&
+    options?.body instanceof FormData;
 
   try {
     res = await fetch(`${BASE}${path}`, {
+      ...options,
       headers: {
-        ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
+        ...(isFormData
+          ? {}
+          : {
+              'Content-Type': 'application/json',
+            }),
         ...(token
           ? {
               Authorization: `Bearer ${token}`,
@@ -54,13 +68,18 @@ async function request<T>(
           : {}),
         ...(options?.headers || {}),
       },
-      ...options,
       signal: controller.signal,
     });
   } catch (err) {
-    if (err instanceof DOMException && err.name === 'AbortError') {
-      throw new ApiError('The server took too long to respond. Please try again.');
+    if (
+      err instanceof DOMException &&
+      err.name === 'AbortError'
+    ) {
+      throw new ApiError(
+        'The server took too long to respond. Please try again.'
+      );
     }
+
     throw err;
   } finally {
     window.clearTimeout(timeout);
@@ -68,6 +87,7 @@ async function request<T>(
 
   if (res.status === 401) {
     clearToken();
+
     window.dispatchEvent(
       new Event('auth:unauthorized')
     );
@@ -93,10 +113,6 @@ async function request<T>(
 }
 
 export const api = {
-  
-  
-  
-
   register: (data: {
     name: string;
     email: string;
@@ -183,10 +199,6 @@ export const api = {
       body: JSON.stringify(data),
     }),
 
-  
-  
-  
-
   listPatients: () =>
     request<Patient[]>('/patients'),
 
@@ -203,32 +215,19 @@ export const api = {
       `/patients/${id}`
     ),
 
-  
-
-
-
-
-
   deletePatient: (id: string) =>
     request<{
       success: boolean;
       message: string;
-
       deletedPatient: {
         id: string;
         name: string;
       };
-
       deletedConsultations: number;
-
       deletedConsultationIds: string[];
     }>(`/patients/${id}`, {
       method: 'DELETE',
     }),
-
-  
-  
-  
 
   startConsultation: (
     patientId: string,
@@ -271,24 +270,27 @@ export const api = {
     audio: Blob,
     language?: string
   ) => {
-    const query = language ? `?language=${encodeURIComponent(language)}` : '';
+    const query = language
+      ? `?language=${encodeURIComponent(language)}`
+      : '';
 
     return request<{
       text: string;
       language?: string;
       duration?: number;
-    }>(`/consultations/${id}/transcribe${query}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': audio.type || 'audio/webm',
+    }>(
+      `/consultations/${id}/transcribe${query}`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type':
+            audio.type || 'audio/webm',
+        },
+        body: audio,
       },
-      body: audio,
-    }, 90_000);
+      90_000
+    );
   },
-
-  
-  
-  
 
   addVital: (
     id: string,
@@ -307,10 +309,6 @@ export const api = {
       }
     ),
 
-  
-  
-  
-
   endConsultation: (id: string) =>
     request<Consultation>(
       `/consultations/${id}/end`,
@@ -318,13 +316,6 @@ export const api = {
         method: 'POST',
       }
     ),
-
-  
-
-
-
-
-
 
   approveConsultation: (
     id: string,
@@ -339,13 +330,6 @@ export const api = {
         }),
       }
     ),
-
-  
-
-
-
-
-
 
   emailReport: (
     id: string,
@@ -362,17 +346,12 @@ export const api = {
       `/consultations/${id}/email`,
       {
         method: 'POST',
-
         body: JSON.stringify({
           to,
           pdfBase64,
         }),
       }
     ),
-
-  
-  
-  
 
   listNotes: () =>
     request<Note[]>(
@@ -409,17 +388,12 @@ export const api = {
       `/consultations/${id}/refine`,
       {
         method: 'POST',
-
         body: JSON.stringify({
           draft,
           instruction,
         }),
       }
     ),
-
-  
-  
-  
 
   sendFeedback: (
     id: string,
@@ -431,16 +405,11 @@ export const api = {
       `/consultations/${id}/feedback`,
       {
         method: 'POST',
-
         body: JSON.stringify({
           rating,
         }),
       }
     ),
-
-  
-  
-  
 
   getStatus: () =>
     request<{
